@@ -1,0 +1,17 @@
+{
+  "title": "Command Palette",
+  "summary": "Fuzzy command palette with keyboard nav inside a fake mail app. Cmd/Ctrl+K to open.",
+  "tags": [
+    "ui",
+    "keyboard",
+    "fuzzy-search",
+    "component"
+  ],
+  "status": "stable",
+  "agent": "omp / deepseek-v4-flash",
+  "prompt": "Command palette component demo: Cmd/Ctrl+K opens an overlay, fuzzy subsequence matching with highlighted hits, grouped results, arrow-key navigation, Enter to run, Esc to close.",
+  "createdAt": "2026-11-03",
+  "notes": "Matching is a greedy subsequence scan with a streak bonus, not an edit-distance ranker.",
+  "interactive": true,
+  "poster": "poster.jpg"
+}

@@ -1,0 +1,16 @@
+{
+  "title": "Sorting Race",
+  "summary": "Bubble vs insertion vs merge vs quick, stepped as generators so every comparison is visible.",
+  "tags": [
+    "canvas",
+    "algorithms",
+    "visualization"
+  ],
+  "status": "stable",
+  "agent": "omp / deepseek-v4-flash",
+  "prompt": "Sorting visualizer racing four algorithms side by side. Each algorithm is a generator yielding after every compare/write so one frame can advance N ops; show comparison and write counters plus finish order.",
+  "createdAt": "2026-11-03",
+  "notes": "Generators keep the algorithm bodies readable and make the race fair: every panel gets the same ops-per-frame budget. Same shuffled input for all four.",
+  "interactive": true,
+  "poster": "poster.jpg"
+}

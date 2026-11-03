@@ -1,0 +1,17 @@
+{
+  "title": "Flow Field",
+  "summary": "2,600 particles riding a seeded noise field. Pointer bends the current, click reseeds.",
+  "tags": [
+    "canvas",
+    "generative",
+    "noise",
+    "particles"
+  ],
+  "status": "stable",
+  "agent": "omp / deepseek-v4-flash",
+  "prompt": "Canvas flow-field particle system: seeded value noise, additive trails, pointer disturbance, reseed on click, density and speed sliders.",
+  "createdAt": "2026-11-03",
+  "notes": "Particles are pooled; density slider adds/removes entries instead of reallocating. Trails come from a low-alpha fill, not per-particle history.",
+  "interactive": true,
+  "poster": "poster.jpg"
+}

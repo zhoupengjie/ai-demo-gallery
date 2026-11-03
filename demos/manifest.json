@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-11-03T21:12:58.484Z",
+  "demos": [
+    {
+      "slug": "boids",
+      "title": "Boids",
+      "summary": "300-agent flocking sim with alignment, cohesion and separation you can reweight live.",
+      "tags": [
+        "canvas",
+        "simulation",
+        "agents",
+        "flocking"
+      ],
+      "status": "stable",
+      "agent": "omp / deepseek-v4-flash",
+      "prompt": "Boids flocking simulation on canvas: alignment/cohesion/separation weights as sliders, pointer attraction, click to scatter, wraparound edges.",
+      "notes": "O(n²) neighbour scan is fine at 300 agents. Motion trails use a translucent overlay clear.",
+      "interactive": true,
+      "createdAt": "2026-11-03",
+      "poster": "poster.jpg",
+      "entry": "demos/boids/index.html",
+      "files": [
+        "demo.json",
+        "index.html",
+        "poster.jpg"
+      ],
+      "bytes": 6420
+    },
+    {
+      "slug": "command-palette",
+      "title": "Command Palette",
+      "summary": "Fuzzy command palette with keyboard nav inside a fake mail app. Cmd/Ctrl+K to open.",
+      "tags": [
+        "ui",
+        "keyboard",
+        "fuzzy-search",
+        "component"
+      ],
+      "status": "stable",
+      "agent": "omp / deepseek-v4-flash",
+      "prompt": "Command palette component demo: Cmd/Ctrl+K opens an overlay, fuzzy subsequence matching with highlighted hits, grouped results, arrow-key navigation, Enter to run, Esc to close.",
+      "notes": "Matching is a greedy subsequence scan with a streak bonus, not an edit-distance ranker.",
+      "interactive": true,
+      "createdAt": "2026-11-03",
+      "poster": "poster.jpg",
+      "entry": "demos/command-palette/index.html",
+      "files": [
+        "demo.json",
+        "index.html",
+        "poster.jpg"
+      ],
+      "bytes": 12044
+    },
+    {
+      "slug": "flow-field",
+      "title": "Flow Field",
+      "summary": "2,600 particles riding a seeded noise field. Pointer bends the current, click reseeds.",
+      "tags": [
+        "canvas",
+        "generative",
+        "noise",
+        "particles"
+      ],
+      "status": "stable",
+      "agent": "omp / deepseek-v4-flash",
+      "prompt": "Canvas flow-field particle system: seeded value noise, additive trails, pointer disturbance, reseed on click, density and speed sliders.",
+      "notes": "Particles are pooled; density slider adds/removes entries instead of reallocating. Trails come from a low-alpha fill, not per-particle history.",
+      "interactive": true,
+      "createdAt": "2026-11-03",
+      "poster": "poster.jpg",
+      "entry": "demos/flow-field/index.html",
+      "files": [
+        "demo.json",
+        "index.html",
+        "poster.jpg"
+      ],
+      "bytes": 6743
+    },
+    {
+      "slug": "sorting-race",
+      "title": "Sorting Race",
+      "summary": "Bubble vs insertion vs merge vs quick, stepped as generators so every comparison is visible.",
+      "tags": [
+        "canvas",
+        "algorithms",
+        "visualization"
+      ],
+      "status": "stable",
+      "agent": "omp / deepseek-v4-flash",
+      "prompt": "Sorting visualizer racing four algorithms side by side. Each algorithm is a generator yielding after every compare/write so one frame can advance N ops; show comparison and write counters plus finish order.",
+      "notes": "Generators keep the algorithm bodies readable and make the race fair: every panel gets the same ops-per-frame budget. Same shuffled input for all four.",
+      "interactive": true,
+      "createdAt": "2026-11-03",
+      "poster": "poster.jpg",
+      "entry": "demos/sorting-race/index.html",
+      "files": [
+        "demo.json",
+        "index.html",
+        "poster.jpg"
+      ],
+      "bytes": 8369
+    }
+  ]
+}

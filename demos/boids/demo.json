@@ -1,0 +1,17 @@
+{
+  "title": "Boids",
+  "summary": "300-agent flocking sim with alignment, cohesion and separation you can reweight live.",
+  "tags": [
+    "canvas",
+    "simulation",
+    "agents",
+    "flocking"
+  ],
+  "status": "stable",
+  "agent": "omp / deepseek-v4-flash",
+  "prompt": "Boids flocking simulation on canvas: alignment/cohesion/separation weights as sliders, pointer attraction, click to scatter, wraparound edges.",
+  "createdAt": "2026-11-03",
+  "notes": "O(n²) neighbour scan is fine at 300 agents. Motion trails use a translucent overlay clear.",
+  "interactive": true,
+  "poster": "poster.jpg"
+}

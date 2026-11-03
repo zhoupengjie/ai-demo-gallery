@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sorting Race</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #07090d;
+    --panel: #0f131a;
+    --line: #1e2632;
+    --text: #dfe6ef;
+    --muted: #74808f;
+    --accent: #7dd3fc;
+    --done: #4ade80;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font: 13px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+    padding: 18px; display: flex; flex-direction: column; gap: 14px;
+  }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+  h1 { margin: 0; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
+  .spacer { flex: 1; }
+  .controls { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 120px; height: 2px; background: #28313d; border-radius: 2px; outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); border: 0; cursor: pointer; }
+  input[type=range]::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); border: 0; }
+  button {
+    font: inherit; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+    padding: 7px 12px; color: var(--text); background: #151b24;
+    border: 1px solid #263140; border-radius: 7px;
+  }
+  button:hover { background: #1c2430; border-color: #364457; }
+  #grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; flex: 1; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  .panel-head { display: flex; align-items: baseline; gap: 8px; }
+  .name { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: #c8d3e0; }
+  .rank { margin-left: auto; font-size: 10px; letter-spacing: .14em; color: var(--done); opacity: 0; }
+  .panel.done .rank { opacity: 1; }
+  .panel.done { border-color: rgba(74, 222, 128, .34); }
+  .stats { font-size: 10px; color: var(--muted); letter-spacing: .06em; }
+  canvas { width: 100%; flex: 1; min-height: 120px; display: block; border-radius: 6px; background: #0a0d12; }
+  @media (max-width: 700px) { #grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sorting Race</h1>
+  <div class="spacer"></div>
+  <label class="controls">Ops/frame <input id="ops" type="range" min="10" max="1200" step="10" value="240"></label>
+  <button id="rerun">New race</button>
+</header>
+<div id="grid"></div>
+<script>
+const SIZE = 72;
+const ALGOS = [
+  { key: 'bubble', name: 'Bubble', gen: bubbleSort },
+  { key: 'insertion', name: 'Insertion', gen: insertionSort },
+  { key: 'merge', name: 'Merge', gen: mergeSort },
+  { key: 'quick', name: 'Quick', gen: quickSort },
+];
+
+const grid = document.getElementById('grid');
+const opsRange = document.getElementById('ops');
+let opsPerFrame = Number(opsRange.value);
+let racers = [];
+let finished = 0;
+
+function shuffle(n) {
+  const a = Array.from({ length: n }, (_, i) => i + 1);
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function stats() { return { comparisons: 0, writes: 0, done: false, rank: 0 }; }
+
+function swap(a, i, j, st) {
+  const t = a[i]; a[i] = a[j]; a[j] = t;
+  st.writes += 2;
+}
+
+function* bubbleSort(a, st) {
+  for (let i = 0; i < a.length - 1; i++) {
+    for (let j = 0; j < a.length - 1 - i; j++) {
+      st.comparisons++;
+      yield { a: j, b: j + 1 };
+      if (a[j] > a[j + 1]) {
+        swap(a, j, j + 1, st);
+        yield { a: j, b: j + 1 };
+      }
+    }
+  }
+}
+
+function* insertionSort(a, st) {
+  for (let i = 1; i < a.length; i++) {
+    let j = i;
+    while (j > 0) {
+      st.comparisons++;
+      yield { a: j - 1, b: j };
+      if (a[j - 1] > a[j]) {
+        swap(a, j - 1, j, st);
+        j--;
+        yield { a: j, b: j + 1 };
+      } else break;
+    }
+  }
+}
+
+function* mergeSort(a, st) {
+  const aux = a.slice();
+  yield* msort(a, aux, 0, a.length - 1, st);
+}
+
+function* msort(a, aux, lo, hi, st) {
+  if (lo >= hi) return;
+  const mid = (lo + hi) >> 1;
+  yield* msort(a, aux, lo, mid, st);
+  yield* msort(a, aux, mid + 1, hi, st);
+  for (let k = lo; k <= hi; k++) aux[k] = a[k];
+  let i = lo, j = mid + 1;
+  for (let k = lo; k <= hi; k++) {
+    st.comparisons++;
+    if (i > mid) { a[k] = aux[j++]; st.writes++; }
+    else if (j > hi) { a[k] = aux[i++]; st.writes++; }
+    else if (aux[i] <= aux[j]) { a[k] = aux[i++]; st.writes++; }
+    else { a[k] = aux[j++]; st.writes++; }
+    yield { a: k, b: k };
+  }
+}
+
+function* quickSort(a, st) {
+  yield* qsort(a, 0, a.length - 1, st);
+}
+
+function* qsort(a, lo, hi, st) {
+  if (lo >= hi) return;
+  const pivot = a[hi];
+  let i = lo;
+  for (let j = lo; j < hi; j++) {
+    st.comparisons++;
+    yield { a: j, b: hi };
+    if (a[j] < pivot) {
+      if (i !== j) swap(a, i, j, st);
+      i++;
+    }
+  }
+  if (i !== hi) swap(a, i, hi, st);
+  yield { a: i, b: hi };
+  yield* qsort(a, lo, i - 1, st);
+  yield* qsort(a, i + 1, hi, st);
+}
+
+function build() {
+  grid.innerHTML = '';
+  finished = 0;
+  const values = shuffle(SIZE);
+
+  racers = ALGOS.map((algo) => {
+    const panel = document.createElement('section');
+    panel.className = 'panel';
+    panel.innerHTML = `
+      <div class="panel-head">
+        <span class="name">${algo.name}</span>
+        <span class="rank"></span>
+      </div>
+      <div class="stats">cmp 0 · writes 0</div>
+      <canvas></canvas>`;
+    grid.append(panel);
+
+    const st = stats();
+    const array = values.slice();
+    const gen = algo.gen(array, st);
+    const racer = {
+      panel,
+      canvas: panel.querySelector('canvas'),
+      statsEl: panel.querySelector('.stats'),
+      rankEl: panel.querySelector('.rank'),
+      array,
+      st,
+      gen,
+      highlight: null,
+    };
+    sizeCanvas(racer);
+    return racer;
+  });
+}
+
+function sizeCanvas(racer) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = racer.canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.round(rect.width));
+  const h = Math.max(1, Math.round(rect.height));
+  racer.canvas.width = Math.round(w * dpr);
+  racer.canvas.height = Math.round(h * dpr);
+  racer.ctx = racer.canvas.getContext('2d');
+  racer.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  racer.w = w;
+  racer.h = h;
+}
+
+function drawPanel(racer) {
+  const { ctx, w, h, array, st, highlight } = racer;
+  ctx.fillStyle = '#0a0d12';
+  ctx.fillRect(0, 0, w, h);
+
+  const gap = w / array.length;
+  const barW = Math.max(1, gap - 1);
+
+  for (let i = 0; i < array.length; i++) {
+    const v = array[i];
+    const bh = (v / array.length) * (h - 8);
+    const isHighlighted = highlight && (i === highlight.a || i === highlight.b);
+    ctx.fillStyle = st.done
+      ? `hsla(150, 70%, ${34 + (v / array.length) * 26}%, 0.9)`
+      : isHighlighted
+        ? '#7dd3fc'
+        : `hsla(205, ${28 + (v / array.length) * 45}%, ${40 + (v / array.length) * 26}%, 0.9)`;
+    ctx.fillRect(i * gap + 0.5, h - bh, barW, bh);
+  }
+}
+
+function tick() {
+  for (const racer of racers) {
+    if (racer.st.done) continue;
+    for (let k = 0; k < opsPerFrame; k++) {
+      const res = racer.gen.next();
+      if (res.done) {
+        racer.st.done = true;
+        racer.st.rank = ++finished;
+        racer.panel.classList.add('done');
+        racer.rankEl.textContent = `#${racer.st.rank}`;
+        racer.highlight = null;
+        break;
+      }
+      racer.highlight = res.value;
+    }
+    racer.statsEl.textContent = `cmp ${racer.st.comparisons.toLocaleString()} · writes ${racer.st.writes.toLocaleString()}`;
+    drawPanel(racer);
+  }
+  requestAnimationFrame(tick);
+}
+
+opsRange.addEventListener('input', (e) => { opsPerFrame = Number(e.target.value); });
+document.getElementById('rerun').addEventListener('click', () => {
+  build();
+});
+window.addEventListener('resize', () => {
+  for (const racer of racers) { sizeCanvas(racer); drawPanel(racer); }
+});
+
+build();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

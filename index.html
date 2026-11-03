@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo Gallery</title>
+<meta name="description" content="agent 生成的实验性 demo 陈列">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="assets/gallery.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <h1>Demo Gallery</h1>
+        <p id="sub">agent 生成的实验场</p>
+      </div>
+    </div>
+    <div class="actions">
+      <span class="count" id="count"></span>
+      <button class="btn" id="random" type="button" title="随机打开一个 demo">随机</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="toolbar">
+    <label class="search">
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.6 10.6 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <input id="q" type="search" placeholder="搜索标题、标签、prompt…" autocomplete="off" spellcheck="false">
+      <kbd>/</kbd>
+    </label>
+    <div class="segmented" id="statusFilter" role="group" aria-label="状态筛选">
+      <button type="button" data-status="all" class="on">全部</button>
+      <button type="button" data-status="stable">稳定</button>
+      <button type="button" data-status="wip">进行中</button>
+      <button type="button" data-status="broken">不可用</button>
+    </div>
+    <select id="sort" aria-label="排序">
+      <option value="newest">最新优先</option>
+      <option value="oldest">最旧优先</option>
+      <option value="title">按名称</option>
+    </select>
+  </div>
+
+  <div class="tags" id="tags"></div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="empty" id="empty" hidden>
+    <p class="empty-title">没有匹配的 demo</p>
+    <p>换个关键词，或点击 <button type="button" class="link" id="reset">清除筛选</button>。</p>
+  </div>
+</main>
+
+<footer class="wrap foot">
+  <span id="generated"></span>
+  <span class="foot-hint">新增 demo：<code>demos/&lt;slug&gt;/index.html</code> + <code>demo.json</code> → <code>node tools/scan-demos.mjs</code></span>
+</footer>
+
+<dialog id="detail" aria-labelledby="d-title">
+  <div class="d-head">
+    <div class="d-heading">
+      <h2 id="d-title"></h2>
+      <p id="d-summary"></p>
+    </div>
+    <div class="d-actions">
+      <button class="btn icon" id="d-reload" type="button" title="重新加载" aria-label="重新加载">↻</button>
+      <a class="btn" id="d-open" target="_blank" rel="noopener">新窗口 ↗</a>
+      <button class="btn icon" id="d-close" type="button" aria-label="关闭">✕</button>
+    </div>
+  </div>
+  <div class="d-body">
+    <div class="stage" id="stage">
+      <div class="stage-frame">
+        <iframe id="d-frame" title="demo 预览"></iframe>
+      </div>
+    </div>
+    <aside class="d-side">
+      <div class="widths" role="group" aria-label="预览宽度">
+        <button type="button" data-w="100%" class="on">桌面</button>
+        <button type="button" data-w="860px">平板</button>
+        <button type="button" data-w="400px">手机</button>
+      </div>
+      <dl class="meta" id="d-meta"></dl>
+      <div class="block">
+        <div class="block-head"><h3>Prompt</h3><button class="btn tiny" id="d-copy" type="button">复制</button></div>
+        <pre id="d-prompt"></pre>
+      </div>
+      <div class="block" id="d-notes-block">
+        <h3>备注</h3>
+        <p id="d-notes"></p>
+      </div>
+      <div class="block">
+        <h3>文件</h3>
+        <p id="d-files" class="mono files"></p>
+      </div>
+    </aside>
+  </div>
+</dialog>
+
+<script src="assets/gallery.js"></script>
+</body>
+</html>

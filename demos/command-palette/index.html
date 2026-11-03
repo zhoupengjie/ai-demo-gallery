@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command Palette</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0c10;
+    --panel: #121419;
+    --panel-2: #171a21;
+    --line: #242832;
+    --text: #e7e9ee;
+    --muted: #8a92a1;
+    --accent: #a78bfa;
+    --bg-hover: #e7e9ee;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .app { display: grid; grid-template-columns: 232px 1fr; height: 100%; }
+  aside { border-right: 1px solid var(--line); padding: 14px 12px; display: flex; flex-direction: column; gap: 4px; background: #0d0f13; }
+  .brand { display: flex; align-items: center; gap: 9px; padding: 6px 8px 16px; font-weight: 650; letter-spacing: -.01em; }
+  .brand .mark { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg, #a78bfa, #38bdf8); }
+  .nav-item { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 7px; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .nav-item:hover { background: #171a21; color: var(--text); }
+  .nav-item.active { background: #1c1f28; color: var(--text); }
+  .nav-item .count { margin-left: auto; font-size: 11px; color: #5d6575; }
+  .nav-label { margin: 16px 9px 6px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #565e6d; }
+  main { display: flex; flex-direction: column; min-width: 0; }
+  header.top { display: flex; align-items: center; gap: 12px; padding: 14px 22px; border-bottom: 1px solid var(--line); }
+  header.top h1 { margin: 0; font-size: 15px; font-weight: 600; }
+  .ghost {
+    margin-left: auto; display: flex; align-items: center; gap: 8px; cursor: pointer;
+    padding: 6px 10px; font: inherit; font-size: 12px; color: var(--muted);
+    background: #13161c; border: 1px solid var(--line); border-radius: 8px;
+  }
+  .ghost:hover { color: var(--text); border-color: #39404e; }
+  kbd {
+    font: 600 10px/1 ui-monospace, monospace; letter-spacing: .02em;
+    padding: 4px 5px; border-radius: 4px; background: #1e222b; border: 1px solid #2c313c; color: #a6adba;
+  }
+  .rows { padding: 8px 12px 20px; overflow: auto; }
+  .row { display: grid; grid-template-columns: 18px 1fr auto; gap: 12px; align-items: center; padding: 11px 12px; border-radius: 9px; }
+  .row:hover { background: #12151b; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #a78bfa; justify-self: center; }
+  .row .title { font-size: 13px; }
+  .row .sub { font-size: 12px; color: var(--muted); }
+  .row time { font-size: 11px; color: #636b7a; }
+  .empty { display: grid; place-items: center; gap: 10px; padding: 90px 20px; color: var(--muted); text-align: center; }
+  .empty strong { color: #c3c9d4; font-weight: 600; }
+
+  .scrim { position: fixed; inset: 0; background: rgba(4, 5, 8, .62); backdrop-filter: blur(3px); display: grid; align-items: start; justify-items: center; padding-top: 14vh; z-index: 10; }
+  .scrim[hidden] { display: none; }
+  .palette { width: min(620px, calc(100vw - 32px)); background: #101319; border: 1px solid #2b303c; border-radius: 14px; box-shadow: 0 30px 80px rgba(0, 0, 0, .6); overflow: hidden; }
+  .palette input {
+    width: 100%; padding: 16px 18px; font: inherit; font-size: 15px; color: var(--text);
+    background: transparent; border: 0; border-bottom: 1px solid #232833; outline: none;
+  }
+  .palette input::placeholder { color: #5d6575; }
+  .items { max-height: 46vh; overflow: auto; padding: 6px; }
+  .group { padding: 8px 12px 4px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #565e6d; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .item .icon { width: 20px; text-align: center; color: #8b93a3; }
+  .item[aria-selected="true"] { background: #1d2130; }
+  .item[aria-selected="true"] .icon { color: var(--accent); }
+  .item mark { background: none; color: var(--accent); font-weight: 600; }
+  .item .sc { margin-left: auto; }
+  .nores { padding: 26px 14px; text-align: center; color: var(--muted); font-size: 13px; }
+  .palette footer { display: flex; gap: 16px; padding: 9px 14px; border-top: 1px solid #232833; font-size: 11px; color: #6b7382; }
+  .palette footer span { display: flex; align-items: center; gap: 6px; }
+  #toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px);
+    padding: 9px 16px; border-radius: 9px; background: #1b1f28; border: 1px solid #333a48;
+    font-size: 12px; opacity: 0; pointer-events: none; transition: .22s ease;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  @media (max-width: 640px) { .app { grid-template-columns: 1fr; } aside { display: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand"><span class="mark"></span>Northwind</div>
+    <div class="nav-item active">✉ Inbox <span class="count">14</span></div>
+    <div class="nav-item">◷ Snoozed</div>
+    <div class="nav-item">➤ Sent</div>
+    <div class="nav-label">Workspace</div>
+    <div class="nav-item">▦ Projects <span class="count">6</span></div>
+    <div class="nav-item">✎ Drafts <span class="count">3</span></div>
+    <div class="nav-item">◈ Archive</div>
+  </aside>
+  <main>
+    <header class="top">
+      <h1>Inbox</h1>
+      <button class="ghost" id="open">Search or run a command <kbd>⌘K</kbd></button>
+    </header>
+    <div class="rows" id="rows"></div>
+  </main>
+</div>
+
+<div class="scrim" id="scrim" hidden>
+  <div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
+    <input id="q" type="text" placeholder="Type a command or search…" autocomplete="off" spellcheck="false">
+    <div class="items" id="items" role="listbox"></div>
+    <footer>
+      <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+      <span><kbd>↵</kbd> run</span>
+      <span><kbd>esc</kbd> close</span>
+    </footer>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const COMMANDS = [
+  { group: 'Actions', icon: '✎', label: 'Compose new message', hint: 'C', run: 'Composer opened' },
+  { group: 'Actions', icon: '↩', label: 'Reply to selected thread', hint: 'R', run: 'Reply drafted' },
+  { group: 'Actions', icon: '↪', label: 'Forward thread', hint: 'F', run: 'Forward started' },
+  { group: 'Actions', icon: '✓', label: 'Mark all as read', run: 'Inbox marked read' },
+  { group: 'Navigation', icon: '✉', label: 'Go to Inbox', hint: 'G I', run: 'Jumped to Inbox' },
+  { group: 'Navigation', icon: '◈', label: 'Go to Archive', hint: 'G A', run: 'Jumped to Archive' },
+  { group: 'Navigation', icon: '▦', label: 'Switch project…', hint: '⌘P', run: 'Project switcher opened' },
+  { group: 'Appearance', icon: '◐', label: 'Toggle dark mode', hint: '⌘D', run: 'Theme toggled' },
+  { group: 'Appearance', icon: '⛶', label: 'Toggle compact density', run: 'Density toggled' },
+  { group: 'Appearance', icon: '⌗', label: 'Change keyboard shortcuts', run: 'Shortcuts panel opened' },
+  { group: 'Settings', icon: '⚙', label: 'Open preferences', hint: '⌘,', run: 'Preferences opened' },
+  { group: 'Settings', icon: '◉', label: 'Manage notification rules', run: 'Notification rules opened' },
+  { group: 'Settings', icon: '⇪', label: 'Export workspace data', run: 'Export queued' },
+];
+
+const THREADS = [
+  ['Design sync moved to Thursday', 'Priya Raman · 9:12 AM', '12'],
+  ['Q4 roadmap review notes', 'Marcus Lee · 8:40 AM', '4'],
+  ['Invoice #2291 paid', 'Billing · Yesterday', ''],
+  ['Re: onboarding copy', 'Ana Silva · Yesterday', '2'],
+  ['Preview environment is live', 'DevOps · Mon', ''],
+  ['Weekly metrics digest', 'Metrics bot · Mon', ''],
+];
+
+const scrim = document.getElementById('scrim');
+const input = document.getElementById('q');
+const itemsEl = document.getElementById('items');
+const toast = document.getElementById('toast');
+let visible = [];
+let active = 0;
+
+document.getElementById('rows').innerHTML = THREADS.map(([title, sub, unread]) => `
+  <div class="row">
+    <span class="dot" style="opacity:${unread ? 1 : 0.15}"></span>
+    <div><div class="title">${title}</div><div class="sub">${sub}</div></div>
+    <time>${unread ? unread + ' new' : ''}</time>
+  </div>`).join('');
+
+function fuzzy(query, text) {
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
+  if (!q) return { score: 0, hits: [] };
+  let qi = 0, score = 0, streak = 0;
+  const hits = [];
+  for (let i = 0; i < t.length && qi < q.length; i++) {
+    if (t[i] === q[qi]) {
+      hits.push(i);
+      score += 1 + streak * 2 + (i === 0 ? 4 : 0);
+      streak++;
+      qi++;
+    } else {
+      streak = 0;
+    }
+  }
+  if (qi < q.length) return null;
+  return { score: score - t.length * 0.02, hits };
+}
+
+function mark(text, hits) {
+  const set = new Set(hits);
+  let out = '';
+  const one = (ch) => (ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch);
+  for (let i = 0; i < text.length; i++) {
+    out += set.has(i) ? `<mark>${one(text[i])}</mark>` : one(text[i]);
+  }
+  return out;
+}
+
+function render() {
+  const query = input.value.trim();
+  const ranked = [];
+  for (const cmd of COMMANDS) {
+    const m = fuzzy(query, cmd.label);
+    if (m) ranked.push({ cmd, m });
+  }
+  ranked.sort((a, b) => b.m.score - a.m.score);
+
+  if (!ranked.length) {
+    itemsEl.innerHTML = `<div class="nores">No matching command for “${query.replace(/</g, '&lt;')}”</div>`;
+    visible = [];
+    return;
+  }
+
+  active = Math.min(active, ranked.length - 1);
+  visible = ranked;
+  let html = '';
+  let lastGroup = '';
+  ranked.forEach((entry, i) => {
+    if (entry.cmd.group !== lastGroup) {
+      html += `<div class="group">${entry.cmd.group}</div>`;
+      lastGroup = entry.cmd.group;
+    }
+    html += `<div class="item" role="option" aria-selected="${i === active}" data-i="${i}">
+      <span class="icon">${entry.cmd.icon}</span>
+      <span>${mark(entry.cmd.label, entry.m.hits)}</span>
+      ${entry.cmd.hint ? `<kbd class="sc">${entry.cmd.hint}</kbd>` : ''}
+    </div>`;
+  });
+  itemsEl.innerHTML = html;
+  itemsEl.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+}
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove('show'), 1600);
+}
+
+function open() {
+  scrim.hidden = false;
+  input.value = '';
+  active = 0;
+  render();
+  input.focus();
+}
+
+function close() {
+  scrim.hidden = true;
+}
+
+function choose(index) {
+  const entry = visible[index];
+  if (!entry) return;
+  close();
+  showToast(entry.cmd.run);
+}
+
+input.addEventListener('input', () => { active = 0; render(); });
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    active = Math.min(active + 1, visible.length - 1);
+    render();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    active = Math.max(active - 1, 0);
+    render();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    choose(active);
+  } else if (e.key === 'Escape') {
+    close();
+  }
+});
+
+itemsEl.addEventListener('click', (e) => {
+  const el = e.target.closest('.item');
+  if (el) choose(Number(el.dataset.i));
+});
+itemsEl.addEventListener('pointermove', (e) => {
+  const el = e.target.closest('.item');
+  if (!el) return;
+  const i = Number(el.dataset.i);
+  if (i !== active) { active = i; render(); }
+});
+
+scrim.addEventListener('pointerdown', (e) => { if (e.target === scrim) close(); });
+document.getElementById('open').addEventListener('click', open);
+window.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    scrim.hidden ? open() : close();
+  }
+  if (e.key === 'Escape' && !scrim.hidden) close();
+});
+
+requestAnimationFrame(open);
+</script>
+</body>
+</html>

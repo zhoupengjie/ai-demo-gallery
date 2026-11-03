@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boids</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #06080c; }
+  canvas { display: block; position: fixed; inset: 0; }
+  .hud {
+    position: fixed; left: 16px; bottom: 16px; z-index: 2;
+    display: grid; gap: 9px; width: 220px; padding: 13px 14px;
+    background: rgba(11, 14, 19, .74); border: 1px solid rgba(255, 255, 255, .09);
+    border-radius: 12px; backdrop-filter: blur(12px);
+    font: 500 11px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace;
+    letter-spacing: .08em; color: #cbd4e0; text-transform: uppercase;
+  }
+  .row { display: grid; grid-template-columns: 62px 1fr; align-items: center; gap: 8px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; height: 2px; background: #29303a; border-radius: 2px; outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: #67e8f9; border: 0; cursor: pointer; }
+  input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: #67e8f9; border: 0; }
+  .hint { position: fixed; right: 16px; bottom: 16px; font: 500 10px/1.4 ui-monospace, monospace; color: #4b5563; text-align: right; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud">
+  <div class="row"><span>Align</span><input id="align" type="range" min="0" max="200" value="90"></div>
+  <div class="row"><span>Cohere</span><input id="cohere" type="range" min="0" max="200" value="60"></div>
+  <div class="row"><span>Separate</span><input id="separate" type="range" min="0" max="200" value="120"></div>
+</div>
+<div class="hint">move to attract<br>click to scatter</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+const COUNT = 300;
+const PERCEPTION = 80;
+const PERCEPTION2 = PERCEPTION * PERCEPTION;
+const SEPARATION = 26;
+const SEPARATION2 = SEPARATION * SEPARATION;
+const MAX_SPEED = 2.9;
+const MIN_SPEED = 1.3;
+
+let W = 0, H = 0, DPR = 1;
+let boids = [];
+const weights = { align: 0.9, cohere: 0.6, separate: 1.2 };
+
+const pointer = { x: 0, y: 0, active: false, push: 0 };
+
+function newBoid() {
+  const angle = Math.random() * Math.PI * 2;
+  const speed = MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED);
+  return {
+    x: Math.random() * W,
+    y: Math.random() * H,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+  };
+}
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#06080c';
+  ctx.fillRect(0, 0, W, H);
+  if (!boids.length) boids = Array.from({ length: COUNT }, newBoid);
+}
+
+function step() {
+  for (const b of boids) {
+    let alignX = 0, alignY = 0, cohX = 0, cohY = 0, sepX = 0, sepY = 0, n = 0;
+
+    for (const o of boids) {
+      if (o === b) continue;
+      const dx = o.x - b.x;
+      const dy = o.y - b.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > PERCEPTION2 || d2 === 0) continue;
+
+      n++;
+      alignX += o.vx; alignY += o.vy;
+      cohX += dx; cohY += dy;
+
+      if (d2 < SEPARATION2) {
+        const inv = 1 / Math.sqrt(d2);
+        sepX -= dx * inv; sepY -= dy * inv;
+      }
+    }
+
+    let ax = 0, ay = 0;
+    if (n > 0) {
+      ax += (alignX / n - b.vx) * weights.align * 0.05;
+      ay += (alignY / n - b.vy) * weights.align * 0.05;
+      ax += (cohX / n) * weights.cohere * 0.0009;
+      ay += (cohY / n) * weights.cohere * 0.0009;
+      ax += sepX * weights.separate * 0.14;
+      ay += sepY * weights.separate * 0.14;
+    }
+
+    if (pointer.active) {
+      const dx = pointer.x - b.x;
+      const dy = pointer.y - b.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const pull = pointer.push > 0 ? -pointer.push * 0.9 : 0.9;
+      if (d < 260) {
+        ax += (dx / d) * pull;
+        ay += (dy / d) * pull;
+      }
+    }
+
+    b.vx += ax;
+    b.vy += ay;
+
+    const speed = Math.hypot(b.vx, b.vy);
+    if (speed > MAX_SPEED) {
+      b.vx = (b.vx / speed) * MAX_SPEED;
+      b.vy = (b.vy / speed) * MAX_SPEED;
+    } else if (speed < MIN_SPEED) {
+      const k = speed || 1;
+      b.vx = (b.vx / k) * MIN_SPEED;
+      b.vy = (b.vy / k) * MIN_SPEED;
+    }
+
+    b.x += b.vx;
+    b.y += b.vy;
+
+    if (b.x < 0) b.x += W; else if (b.x > W) b.x -= W;
+    if (b.y < 0) b.y += H; else if (b.y > H) b.y -= H;
+  }
+
+  if (pointer.push > 0) pointer.push *= 0.92;
+}
+
+function draw() {
+  ctx.fillStyle = 'rgba(6, 8, 12, 0.22)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.lineCap = 'round';
+
+  for (const b of boids) {
+    const angle = Math.atan2(b.vy, b.vx);
+    const speed = Math.hypot(b.vx, b.vy);
+    const hue = 186 + (speed / MAX_SPEED) * 130;
+    ctx.strokeStyle = `hsla(${hue}, 92%, 66%, 0.85)`;
+    ctx.lineWidth = 1.4;
+
+    ctx.beginPath();
+    ctx.moveTo(b.x + Math.cos(angle) * 6.5, b.y + Math.sin(angle) * 6.5);
+    ctx.lineTo(b.x + Math.cos(angle + 2.5) * 4, b.y + Math.sin(angle + 2.5) * 4);
+    ctx.lineTo(b.x + Math.cos(angle - 2.5) * 4, b.y + Math.sin(angle - 2.5) * 4);
+    ctx.closePath();
+    ctx.stroke();
+  }
+}
+
+function frame() {
+  step();
+  draw();
+  requestAnimationFrame(frame);
+}
+
+for (const [id, key, scale] of [['align', 'align', 100], ['cohere', 'cohere', 100], ['separate', 'separate', 100]]) {
+  document.getElementById(id).addEventListener('input', (e) => {
+    weights[key] = Number(e.target.value) / scale;
+  });
+}
+
+window.addEventListener('pointermove', (e) => {
+  pointer.x = e.clientX; pointer.y = e.clientY; pointer.active = true;
+});
+window.addEventListener('pointerdown', (e) => {
+  pointer.x = e.clientX; pointer.y = e.clientY;
+  pointer.push = 6;
+  for (const b of boids) {
+    const dx = b.x - pointer.x, dy = b.y - pointer.y;
+    const d = Math.hypot(dx, dy) || 1;
+    if (d < 200) {
+      const f = (1 - d / 200) * 6;
+      b.vx += (dx / d) * f;
+      b.vy += (dy / d) * f;
+    }
+  }
+});
+window.addEventListener('pointerleave', () => { pointer.active = false; });
+window.addEventListener('resize', resize);
+
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
