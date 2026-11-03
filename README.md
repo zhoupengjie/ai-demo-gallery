@@ -53,13 +53,15 @@ python -m http.server 8123       # 任意静态服务器，file:// 下 fetch 会
 | `tags` | 否 | 小写、短；同时用于筛选和搜索 |
 | `status` | 否 | `stable`（默认）/ `wip` / `broken` |
 | `agent` | 是 | 生成者，形如 `omp / deepseek-v4-flash`；卡片只显示 `/` 后的模型名 |
-| `effort` | 是 | 模型档位，必须是 `low` / `medium` / `high` 之一 |
+| `effort` | 是 | omp 规范档位，必须是 `minimal` / `low` / `medium` / `high` / `xhigh` / `max` 之一 |
 | `prompt` | 否 | 原始 prompt，用来复现/迭代 |
 | `createdAt` | 否 | 缺省取 `demo.json` 修改时间 |
 | `poster` | 否 | 相对 demo 目录的图片路径，16:10（建议 1280×800 或 1600×1000）。缺省时卡片显示渐变占位图，hover 才有实时预览 |
 | `interactive` | 否 | 纯静态展示时设 `false` |
 
 未知字段会警告；缺 `index.html` 或 JSON 非法会被跳过。
+
+`effort` 用的是 omp 的规范 `Effort` 枚举，各厂商只是子集：Claude 是 `low`–`max`（没有 `minimal`，`xhigh` 仅部分型号支持）、Codex 是 `minimal`–`xhigh`、Gemini / DeepSeek 最高到 `high`。`ultra` 不是档位——`ultrafast` 是 OpenAI 的 service tier，`ultrathink` 是“选当前模型最高档”的关键词，都不是 effort 值。
 
 ## 为什么要这些信息
 

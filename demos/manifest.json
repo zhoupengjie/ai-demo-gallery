@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-03T21:26:35.982Z",
+  "generatedAt": "2026-11-03T21:29:35.717Z",
   "demos": [
     {
       "slug": "boids",
@@ -13,7 +13,7 @@
       ],
       "status": "stable",
       "agent": "omp / deepseek-v4-flash",
-      "effort": "medium",
+      "effort": "high",
       "prompt": "Boids flocking simulation on canvas: alignment/cohesion/separation weights as sliders, pointer attraction, click to scatter, wraparound edges.",
       "notes": "O(n²) neighbour scan is fine at 300 agents. Motion trails use a translucent overlay clear.",
       "interactive": true,
@@ -39,7 +39,7 @@
       ],
       "status": "stable",
       "agent": "omp / deepseek-v4-flash",
-      "effort": "medium",
+      "effort": "high",
       "prompt": "Command palette component demo: Cmd/Ctrl+K opens an overlay, fuzzy subsequence matching with highlighted hits, grouped results, arrow-key navigation, Enter to run, Esc to close.",
       "notes": "Matching is a greedy subsequence scan with a streak bonus, not an edit-distance ranker.",
       "interactive": true,
@@ -65,7 +65,7 @@
       ],
       "status": "stable",
       "agent": "omp / deepseek-v4-flash",
-      "effort": "medium",
+      "effort": "high",
       "prompt": "Canvas flow-field particle system: seeded value noise, additive trails, pointer disturbance, reseed on click, density and speed sliders.",
       "notes": "Particles are pooled; density slider adds/removes entries instead of reallocating. Trails come from a low-alpha fill, not per-particle history.",
       "interactive": true,
@@ -90,7 +90,7 @@
       ],
       "status": "stable",
       "agent": "omp / deepseek-v4-flash",
-      "effort": "medium",
+      "effort": "high",
       "prompt": "Sorting visualizer racing four algorithms side by side. Each algorithm is a generator yielding after every compare/write so one frame can advance N ops; show comparison and write counters plus finish order.",
       "notes": "Generators keep the algorithm bodies readable and make the race fair: every panel gets the same ops-per-frame budget. Same shuffled input for all four.",
       "interactive": true,

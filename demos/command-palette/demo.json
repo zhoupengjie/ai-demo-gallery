@@ -14,5 +14,5 @@
   "notes": "Matching is a greedy subsequence scan with a streak bonus, not an edit-distance ranker.",
   "interactive": true,
   "poster": "poster.jpg",
-  "effort": "medium"
+  "effort": "high"
 }

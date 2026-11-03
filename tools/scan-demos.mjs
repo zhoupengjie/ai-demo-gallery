@@ -8,7 +8,8 @@ import path from "node:path";
 const DEMO_DIR = "demos";
 const MANIFEST = path.join(DEMO_DIR, "manifest.json");
 const STATUSES = new Set(["stable", "wip", "broken"]);
-const EFFORTS = new Set(["low", "medium", "high"]);
+const EFFORTS = ["minimal", "low", "medium", "high", "xhigh", "max"];
+const EFFORT_SET = new Set(EFFORTS);
 const REQUIRED = ["title", "summary", "agent", "effort"];
 const META_KEYS = ["slug", "title", "summary", "tags", "status", "agent", "effort", "prompt", "notes", "createdAt", "poster", "interactive"];
 
@@ -42,8 +43,9 @@ async function readMeta(slug) {
   const status = meta.status ?? "stable";
   if (!STATUSES.has(status)) problems.push(`unknown status "${status}" (use stable|wip|broken)`);
 
-  if (typeof meta.effort === "string" && meta.effort.trim() && !EFFORTS.has(meta.effort)) {
-    problems.push(`invalid effort "${meta.effort}" (use ${[...EFFORTS].join("|")})`);
+  const effort = typeof meta.effort === "string" ? meta.effort.trim() : "";
+  if (effort && !EFFORT_SET.has(effort)) {
+    problems.push(`invalid effort "${effort}" (use ${EFFORTS.join("|")})`);
   }
 
   const unknown = Object.keys(meta).filter((k) => !META_KEYS.includes(k));
@@ -67,7 +69,7 @@ async function readMeta(slug) {
     tags,
     status,
     agent: meta.agent.trim(),
-    effort: meta.effort,
+    effort,
     prompt: meta.prompt ?? null,
     notes: meta.notes ?? null,
     interactive: meta.interactive !== false,
