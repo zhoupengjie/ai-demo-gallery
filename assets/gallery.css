@@ -213,6 +213,8 @@ select#sort:focus-visible { border-color: #3a465c; }
   font: 500 10px/1.2 var(--mono); color: #9aa4b4;
 }
 .card-agent { margin-left: auto; font: 500 10px/1 var(--mono); color: var(--muted-2); white-space: nowrap; }
+.card-agent em { font-style: normal; color: #6b7b91; }
+.card-agent em::before { content: "· "; color: #3d4551; }
 
 /* ---------- empty / notice ---------- */
 

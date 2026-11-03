@@ -35,6 +35,7 @@ python -m http.server 8123       # 任意静态服务器，file:// 下 fetch 会
   "tags": ["canvas", "algorithms"],
   "status": "stable",
   "agent": "omp / deepseek-v4-flash",
+  "effort": "medium",
   "prompt": "生成它的原始 prompt，详情页可一键复制复现。",
   "createdAt": "2026-11-03",
   "notes": "实现上的取舍、已知问题。可省略。",
@@ -51,7 +52,8 @@ python -m http.server 8123       # 任意静态服务器，file:// 下 fetch 会
 | `title` / `summary` | 是 | 卡片标题与两行简介 |
 | `tags` | 否 | 小写、短；同时用于筛选和搜索 |
 | `status` | 否 | `stable`（默认）/ `wip` / `broken` |
-| `agent` | 否 | 生成者，形如 `omp / deepseek-v4-flash` |
+| `agent` | 是 | 生成者，形如 `omp / deepseek-v4-flash`；卡片只显示 `/` 后的模型名 |
+| `effort` | 是 | 模型档位，必须是 `low` / `medium` / `high` 之一 |
 | `prompt` | 否 | 原始 prompt，用来复现/迭代 |
 | `createdAt` | 否 | 缺省取 `demo.json` 修改时间 |
 | `poster` | 否 | 相对 demo 目录的图片路径，16:10（建议 1280×800 或 1600×1000）。缺省时卡片显示渐变占位图，hover 才有实时预览 |
@@ -67,7 +69,7 @@ python -m http.server 8123       # 任意静态服务器，file:// 下 fetch 会
 - **缩略图**：视觉筛掉 80% 不相关的。优先用 poster；没有 poster 时才在 hover 时挂实时 iframe。
 - **状态点**：避免点开一个坏掉的 demo。
 - **标签**：跨 demo 横向对比（都是 canvas 的、都是 UI 组件的）。
-- **agent / 日期**：追溯是哪个模型哪一版生成的。
+- **agent / effort / 日期**：追溯是哪个模型、哪档 effort、哪一版生成的，便于横向对比模型产出。
 
 详情页才展开复现所需：prompt、备注、入口路径、文件列表，以及桌面/平板/手机三档预览宽度。
 

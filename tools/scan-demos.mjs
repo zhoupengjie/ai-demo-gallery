@@ -8,10 +8,10 @@ import path from "node:path";
 const DEMO_DIR = "demos";
 const MANIFEST = path.join(DEMO_DIR, "manifest.json");
 const STATUSES = new Set(["stable", "wip", "broken"]);
-const REQUIRED = ["title", "summary"];
-const META_KEYS = ["slug", "title", "summary", "tags", "status", "agent", "prompt", "notes", "createdAt", "poster", "interactive"];
+const EFFORTS = new Set(["low", "medium", "high"]);
+const REQUIRED = ["title", "summary", "agent", "effort"];
+const META_KEYS = ["slug", "title", "summary", "tags", "status", "agent", "effort", "prompt", "notes", "createdAt", "poster", "interactive"];
 
-const isDir = async (p) => (await stat(p)).isDirectory();
 const fileSize = async (p) => (await stat(p)).size;
 
 async function listDemos() {
@@ -42,6 +42,10 @@ async function readMeta(slug) {
   const status = meta.status ?? "stable";
   if (!STATUSES.has(status)) problems.push(`unknown status "${status}" (use stable|wip|broken)`);
 
+  if (typeof meta.effort === "string" && meta.effort.trim() && !EFFORTS.has(meta.effort)) {
+    problems.push(`invalid effort "${meta.effort}" (use ${[...EFFORTS].join("|")})`);
+  }
+
   const unknown = Object.keys(meta).filter((k) => !META_KEYS.includes(k));
   if (unknown.length) problems.push(`unknown keys: ${unknown.join(", ")}`);
 
@@ -62,7 +66,8 @@ async function readMeta(slug) {
     summary: meta.summary.trim(),
     tags,
     status,
-    agent: meta.agent ?? null,
+    agent: meta.agent.trim(),
+    effort: meta.effort,
     prompt: meta.prompt ?? null,
     notes: meta.notes ?? null,
     interactive: meta.interactive !== false,

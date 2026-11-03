@@ -108,7 +108,7 @@ function matches(d) {
 
   const q = state.q.trim().toLowerCase();
   if (!q) return true;
-  const haystack = [d.title, d.summary, d.agent, d.prompt, d.notes, ...d.tags].join(" ").toLowerCase();
+  const haystack = [d.title, d.summary, d.agent, d.effort, d.prompt, d.notes, ...d.tags].join(" ").toLowerCase();
   return q.split(/\s+/).every((word) => haystack.includes(word));
 }
 
@@ -163,7 +163,7 @@ function cardHTML(d) {
     <p class="card-summary">${esc(d.summary)}</p>
     <div class="card-foot">
       <div class="card-tags">${tags}</div>
-      <span class="card-agent" title="${esc(d.agent ?? "")}">${esc(agent)}</span>
+      <span class="card-agent" title="${esc(d.agent ?? "")} · ${esc(d.effort ?? "")} effort">${esc(agent)} <em>${esc(d.effort ?? "")}</em></span>
     </div>
   </div>
 </article>`;
@@ -246,6 +246,7 @@ function openDetail(slug) {
     <dt>状态</dt><dd><span class="badge ${st.cls}" style="border-color:#2b3240"><span class="dot"></span>${st.label}</span></dd>
     <dt>日期</dt><dd class="mono">${esc((d.createdAt ?? "").slice(0, 10))}</dd>
     <dt>Agent</dt><dd class="mono">${esc(d.agent ?? "—")}</dd>
+    <dt>Effort</dt><dd class="mono">${esc(d.effort ?? "—")}</dd>
     <dt>标签</dt><dd>${d.tags.map((t) => `<span class="pill">${esc(t)}</span>`).join(" ") || "—"}</dd>
     <dt>入口</dt><dd class="mono">${esc(d.entry)}</dd>`;
   els.dPrompt.textContent = d.prompt ?? "—";

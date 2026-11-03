@@ -12,5 +12,6 @@
   "createdAt": "2026-11-03",
   "notes": "Generators keep the algorithm bodies readable and make the race fair: every panel gets the same ops-per-frame budget. Same shuffled input for all four.",
   "interactive": true,
-  "poster": "poster.jpg"
+  "poster": "poster.jpg",
+  "effort": "medium"
 }

@@ -13,5 +13,6 @@
   "createdAt": "2026-11-03",
   "notes": "Particles are pooled; density slider adds/removes entries instead of reallocating. Trails come from a low-alpha fill, not per-particle history.",
   "interactive": true,
-  "poster": "poster.jpg"
+  "poster": "poster.jpg",
+  "effort": "medium"
 }

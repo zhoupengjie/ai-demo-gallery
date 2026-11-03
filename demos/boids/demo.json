@@ -13,5 +13,6 @@
   "createdAt": "2026-11-03",
   "notes": "O(n²) neighbour scan is fine at 300 agents. Motion trails use a translucent overlay clear.",
   "interactive": true,
-  "poster": "poster.jpg"
+  "poster": "poster.jpg",
+  "effort": "medium"
 }
