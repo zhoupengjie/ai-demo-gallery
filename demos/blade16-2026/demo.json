@@ -1,0 +1,13 @@
+{
+  "title": "Blade 16 (2026) 3D",
+  "summary": "按官网参数还原的 Blade 16 三维模型：分层拆解、风扇转速、屏幕开机、PCB 电流与信息流特效。",
+  "tags": ["three.js", "webgl", "3d", "product", "shader"],
+  "status": "stable",
+  "agent": "claude-code / claude-opus-5-5",
+  "effort": "xhigh",
+  "prompt": "我想给Blade16 2026 笔记本做一个模型演示页\n\n1. 请先查找这款笔记本的参数，尺寸，外观，官网展示页面的信息和特效风格\n2. 复现一下这个笔记本的外观\n3. 支持笔记本的内部部件展开\n4. 支持风扇旋转\n5. 支持屏幕亮起\n6. 有电流/信息流特效",
+  "createdAt": "2026-11-03",
+  "notes": "尺寸与规格取自 razer.com Tech Specs（355 × 250.5 × 14.9–17.4 mm，2.14 kg，Core Ultra 9 386H，RTX 5090 Laptop 165 W，2.5K OLED 240 Hz，90 WHr）。模型全部程序化生成，three.js 0.184 放在 vendor/ 下以保证离线可跑。官网未公开内部布局，风扇数量、主板走线、元件位置均为示意；顶盖徽标用原创图形替代商标。拆解采用逐层后退的阶梯式展开，避免上层遮挡 CPU/GPU。URL hash 可直达状态，如 #explode&mode=turbo&t=6（t 为快进秒数，便于截图）。",
+  "interactive": true,
+  "poster": "poster.jpg"
+}
