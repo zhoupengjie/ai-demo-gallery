@@ -1,0 +1,5336 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HK416 A5 · 交互式拆解模型</title>
+<meta name="description" content="A procedurally built, dependency-free 3D HK416 A5: trigger, charging, magazine, ejection port, exploded view and reload cycle in raw WebGL.">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #06080a;
+    --ink: #e8edf2;
+    --ink-2: #b9c4ce;
+    --dim: #7d8994;
+    --faint: #4d5862;
+    --line: rgba(214, 226, 238, .105);
+    --line-2: rgba(214, 226, 238, .19);
+    --panel: rgba(11, 15, 19, .84);
+    --panel-2: rgba(7, 10, 13, .92);
+    --accent: #e2b26b;
+    --accent-2: #8fb8cc;
+    --warn: #dc7a5a;
+    --ok: #93b894;
+    --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+    --sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --dock-h: 118px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
+    opacity: 0;
+    transition: opacity .7s ease;
+  }
+  body.ready { opacity: 1; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 2px;
+  }
+  kbd {
+    display: inline-block;
+    min-width: 16px;
+    padding: 1px 4px;
+    border: 1px solid var(--line-2);
+    border-bottom-color: rgba(255,255,255,.26);
+    border-radius: 4px;
+    background: rgba(255,255,255,.04);
+    font: 9px/1.3 var(--mono);
+    color: var(--ink-2);
+    text-align: center;
+  }
+  #gl {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    cursor: grab;
+  }
+  #gl.grabbing { cursor: grabbing; }
+  #gl.pointing { cursor: pointer; }
+  #vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 72% 64% at 54% 46%, transparent 42%, rgba(0,0,0,.30) 100%),
+      linear-gradient(to bottom, rgba(4,6,8,.42), transparent 16%, transparent 76%, rgba(4,6,8,.60));
+  }
+  #grain {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: .035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+  }
+  #ui { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+  #ui button, #ui input, #ui a, #ui .interactive { pointer-events: auto; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 22px;
+    z-index: 8;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(4,6,8,.72), rgba(4,6,8,0));
+  }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark {
+    width: 34px; height: 34px;
+    flex: 0 0 auto;
+    border: 1px solid rgba(226,178,107,.34);
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    color: var(--accent);
+    background:
+      radial-gradient(circle at 50% 40%, rgba(226,178,107,.12), transparent 70%),
+      rgba(255,255,255,.015);
+    box-shadow: inset 0 0 18px rgba(226,178,107,.05);
+  }
+  .mark svg { width: 19px; height: 19px; display: block; }
+  .brand-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .brand-copy h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: .10em;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+  .brand-copy h1 span { color: var(--accent); font-weight: 500; }
+  .brand-copy h1 i { font-style: normal; color: var(--dim); font-weight: 400; letter-spacing: .04em; }
+  .brand-copy p {
+    margin: 0;
+    font: 8.5px/1.4 var(--mono);
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--dim);
+    white-space: nowrap;
+  }
+  .topbar-spacer { flex: 1; }
+  .topmeta { display: flex; align-items: center; gap: 7px; pointer-events: auto; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 23px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font: 8.5px var(--mono);
+    letter-spacing: .10em;
+    color: var(--dim);
+    white-space: nowrap;
+    background: rgba(255,255,255,.018);
+  }
+  .badge b { color: var(--ink-2); font-weight: 400; }
+  .badge .led {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 6px rgba(147,184,148,.7);
+  }
+  .icon-btn {
+    height: 25px;
+    min-width: 25px;
+    padding: 0 7px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font: 9px var(--mono);
+    letter-spacing: .06em;
+    color: var(--dim);
+    background: rgba(255,255,255,.018);
+    transition: color .15s, border-color .15s, background .15s;
+  }
+  .icon-btn:hover { color: var(--ink); border-color: var(--line-2); background: rgba(255,255,255,.04); }
+  .icon-btn[aria-pressed="true"] { color: var(--accent); border-color: rgba(226,178,107,.30); }
+  .icon-btn svg { width: 12px; height: 12px; display: block; }
+
+  /* ---------- panels ---------- */
+  .panel {
+    position: fixed;
+    left: 18px;
+    top: 68px;
+    bottom: calc(var(--dock-h) + 30px);
+    width: 292px;
+    display: flex;
+    flex-direction: column;
+    min-height: 210px;
+    z-index: 7;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(14,18,23,.88), rgba(8,11,14,.86));
+    box-shadow: 0 26px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.035);
+    backdrop-filter: blur(18px) saturate(120%);
+    transition: transform .34s cubic-bezier(.4,0,.2,1), opacity .2s;
+    pointer-events: auto;
+    overflow: hidden;
+  }
+  .panel.closed {
+    transform: translateX(calc(-100% - 24px));
+    opacity: 0;
+    pointer-events: none;
+  }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid var(--line);
+    flex: 0 0 auto;
+  }
+  .panel-head h2 {
+    margin: 0;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .12em;
+  }
+  .panel-head em {
+    font: 8px var(--mono);
+    font-style: normal;
+    letter-spacing: .1em;
+    color: var(--faint);
+    margin-right: auto;
+  }
+  .panel-head .close {
+    color: var(--faint);
+    width: 20px; height: 20px;
+    display: grid; place-items: center;
+    border-radius: 4px;
+    font: 12px/1 var(--mono);
+  }
+  .panel-head .close:hover { color: var(--ink); background: rgba(255,255,255,.05); }
+  .specs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--line);
+    border-bottom: 1px solid var(--line);
+    flex: 0 0 auto;
+  }
+  .spec {
+    background: rgba(10,13,17,.72);
+    padding: 7px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .spec span { font: 7.5px var(--mono); letter-spacing: .13em; color: var(--faint); text-transform: uppercase; }
+  .spec b { font: 11px var(--mono); font-weight: 400; color: var(--ink-2); letter-spacing: .02em; }
+  .spec b u { text-decoration: none; color: var(--faint); font-size: 8px; }
+  .part-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.14) transparent;
+  }
+  .part-list::-webkit-scrollbar { width: 5px; }
+  .part-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.13); border-radius: 3px; }
+  .part-row {
+    display: grid;
+    grid-template-columns: 21px minmax(0,1fr) 6px;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    text-align: left;
+    transition: background .12s, border-color .12s;
+    min-height: 33px;
+  }
+  .part-row:hover { background: rgba(255,255,255,.035); }
+  .part-row.hov { border-color: rgba(226,178,107,.22); background: rgba(226,178,107,.045); }
+  .part-row.sel {
+    background: linear-gradient(90deg, rgba(226,178,107,.14), rgba(226,178,107,.02));
+    border-color: rgba(226,178,107,.30);
+  }
+  .part-row .num { font: 8.5px var(--mono); color: var(--faint); letter-spacing: .04em; }
+  .part-row.sel .num, .part-row.hov .num { color: var(--accent); }
+  .part-row .nm {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    font-size: 11.5px;
+    line-height: 1.15;
+    color: var(--ink-2);
+    letter-spacing: .02em;
+  }
+  .part-row.sel .nm { color: var(--ink); }
+  .part-row .nm em {
+    font: 7.5px var(--mono);
+    font-style: normal;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .part-row .dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.15);
+  }
+  .part-row .dot.live { background: var(--accent); box-shadow: 0 0 7px rgba(226,178,107,.55); }
+  .part-detail {
+    flex: 0 0 auto;
+    max-height: 54px;
+    border-top: 1px solid var(--line);
+    padding: 11px 13px 12px;
+    background: rgba(6,9,12,.6);
+    overflow: hidden;
+    transition: max-height .3s cubic-bezier(.4,0,.2,1);
+  }
+  .panel.has-sel .part-detail { max-height: 206px; }
+  .pd-empty {
+    font: 9.5px/1.6 var(--mono);
+    color: var(--faint);
+    letter-spacing: .02em;
+  }
+  .pd-empty b { color: var(--dim); font-weight: 400; }
+  .pd-body { display: none; }
+  .panel.has-sel .pd-body { display: block; }
+  .panel.has-sel .pd-empty { display: none; }
+  .pd-top { display: flex; align-items: flex-start; gap: 8px; }
+  .pd-top h3 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .04em; }
+  .pd-top h3 span { color: var(--accent); font: 9px var(--mono); font-weight: 400; margin-right: 5px; letter-spacing: .04em; }
+  .pd-top p { margin: 1px 0 0; font: 7.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  .pd-close { margin-left: auto; color: var(--faint); font: 13px/1 var(--mono); padding: 2px 3px; border-radius: 3px; }
+  .pd-close:hover { color: var(--ink); background: rgba(255,255,255,.05); }
+  .pd-desc {
+    margin: 8px 0 0;
+    font-size: 10.5px;
+    line-height: 1.6;
+    color: #a8b3bd;
+    letter-spacing: .01em;
+  }
+  .pd-meta {
+    margin: 7px 0 0;
+    font: 8px/1.5 var(--mono);
+    color: var(--faint);
+    letter-spacing: .04em;
+  }
+  .pd-hints { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .pd-hints span {
+    padding: 2px 6px;
+    border: 1px solid rgba(226,178,107,.24);
+    border-radius: 3px;
+    font: 8px var(--mono);
+    color: #d8bd93;
+    letter-spacing: .04em;
+  }
+
+  /* ---------- HUD ---------- */
+  .hud {
+    position: fixed;
+    top: 76px;
+    right: 20px;
+    width: 212px;
+    z-index: 7;
+    padding: 11px 13px 10px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(9,13,17,.72);
+    backdrop-filter: blur(14px) saturate(115%);
+    box-shadow: 0 14px 36px rgba(0,0,0,.30);
+    pointer-events: auto;
+  }
+  .hud-top { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+  .hud-top span { font: 7.5px var(--mono); letter-spacing: .15em; color: var(--faint); }
+  .hud-mode {
+    padding: 2px 5px;
+    border: 1px solid rgba(226,178,107,.26);
+    border-radius: 3px;
+    color: var(--accent) !important;
+    letter-spacing: .1em !important;
+    font-size: 7.5px !important;
+  }
+  .hud-mode.safe { color: var(--ok) !important; border-color: rgba(147,184,148,.28); }
+  .hud-ammo { display: flex; align-items: baseline; gap: 5px; margin: 1px 0 0; }
+  .hud-ammo strong {
+    font: 400 40px/1 var(--mono);
+    letter-spacing: -.045em;
+    color: #f2f5f8;
+    font-variant-numeric: tabular-nums;
+  }
+  .hud-ammo .plus { font: 10px var(--mono); color: var(--accent); letter-spacing: .02em; min-width: 17px; }
+  .hud-ammo em { margin-left: auto; font: 8px var(--mono); font-style: normal; color: var(--faint); letter-spacing: .06em; }
+  .hud-ticks { display: flex; align-items: flex-end; gap: 1.5px; height: 11px; margin: 7px 0 7px; }
+  .hud-ticks i {
+    flex: 1 1 0;
+    height: 5px;
+    max-width: 4px;
+    border-radius: 1px;
+    background: rgba(255,255,255,.085);
+    transition: height .1s, background .1s;
+  }
+  .hud-ticks i.on { height: 11px; background: linear-gradient(to top, #a97d42, var(--accent)); }
+  .hud-state {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    border-top: 1px solid var(--line);
+    padding-top: 6px;
+    font: 8px var(--mono);
+    letter-spacing: .04em;
+    color: var(--faint);
+  }
+  .hud-state b { color: var(--dim); font-weight: 400; display: inline-flex; align-items: center; gap: 4px; }
+  .hud-state b::before { content: ""; width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
+  .hud-state b.ok { color: var(--ok); }
+  .hud-state b.warn { color: var(--warn); }
+
+  /* ---------- dock ---------- */
+  .dock {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    width: min(1000px, calc(100vw - 32px));
+    z-index: 8;
+    padding: 9px 12px 10px;
+    display: grid;
+    gap: 6px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(15,19,24,.91), rgba(7,10,13,.94));
+    box-shadow: 0 26px 60px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+    backdrop-filter: blur(20px) saturate(125%);
+    pointer-events: auto;
+  }
+  .dock-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .dock-label {
+    flex: 0 0 auto;
+    min-width: 36px;
+    font: 7.5px var(--mono);
+    letter-spacing: .13em;
+    color: var(--faint);
+    text-transform: uppercase;
+  }
+  .divider { width: 1px; height: 22px; background: var(--line); margin: 0 2px; flex: 0 0 auto; }
+  .seg {
+    display: flex;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    flex: 0 0 auto;
+  }
+  .seg button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    padding: 5px 9px 4px;
+    font-size: 10.5px;
+    line-height: 1.1;
+    color: var(--dim);
+    background: rgba(255,255,255,.015);
+    transition: background .14s, color .14s;
+  }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button em { font: 7px var(--mono); font-style: normal; letter-spacing: .1em; color: var(--faint); }
+  .seg button:hover { color: var(--ink-2); background: rgba(255,255,255,.04); }
+  .seg button.on {
+    color: #f1dfc5;
+    background: linear-gradient(180deg, rgba(226,178,107,.17), rgba(226,178,107,.07));
+  }
+  .seg button.on em { color: rgba(226,178,107,.72); }
+  .act {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    padding: 5px 9px 4px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255,255,255,.015);
+    font-size: 10.5px;
+    line-height: 1.1;
+    color: var(--ink-2);
+    white-space: nowrap;
+    transition: background .14s, border-color .14s, color .14s, transform .06s;
+    flex: 0 0 auto;
+  }
+  .act em { font: 7px var(--mono); font-style: normal; letter-spacing: .1em; color: var(--faint); }
+  .act:hover { color: var(--ink); border-color: rgba(226,178,107,.32); background: rgba(226,178,107,.06); }
+  .act:active { transform: translateY(1px); }
+  .act.on { color: #f1dfc5; border-color: rgba(226,178,107,.4); background: rgba(226,178,107,.12); }
+  .act:disabled { opacity: .35; cursor: not-allowed; }
+  .act.small { flex-direction: row; align-items: center; gap: 5px; padding: 6px 9px; font-size: 9.5px; }
+  .act.small em { display: none; }
+  .play {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 9px;
+    border: 1px solid rgba(226,178,107,.26);
+    border-radius: 8px;
+    color: #e9d3ae;
+    font-size: 9.5px;
+    letter-spacing: .03em;
+    background: rgba(226,178,107,.055);
+    white-space: nowrap;
+    transition: background .14s;
+  }
+  .play:hover { background: rgba(226,178,107,.12); }
+  .play svg { width: 9px; height: 9px; }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1 1 120px;
+    min-width: 90px;
+    height: 18px;
+    margin: 0 2px;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(to right, var(--accent) 0 var(--pct,0%), rgba(255,255,255,.13) var(--pct,0%));
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 11px; height: 11px;
+    margin-top: -4.5px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 0;
+    box-shadow: 0 0 0 4px rgba(226,178,107,.12), 0 1px 4px rgba(0,0,0,.5);
+  }
+  input[type="range"]::-moz-range-track { height: 2px; background: rgba(255,255,255,.13); }
+  input[type="range"]::-moz-range-progress { height: 2px; background: var(--accent); }
+  input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border: 0; border-radius: 50%; background: var(--accent); }
+  .readout { font: 9px var(--mono); color: var(--dim); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font: 9px var(--mono);
+    color: var(--dim);
+    letter-spacing: .04em;
+    cursor: pointer;
+    white-space: nowrap;
+    padding: 2px 0;
+  }
+  .check input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .check .box {
+    width: 10px; height: 10px;
+    border: 1px solid var(--line-2);
+    border-radius: 2px;
+    display: grid;
+    place-items: center;
+    transition: background .15s, border-color .15s;
+  }
+  .check .box::after {
+    content: "";
+    width: 4px; height: 4px;
+    border-radius: 1px;
+    background: var(--accent);
+    transform: scale(0);
+    transition: transform .12s;
+  }
+  .check input:checked + .box { border-color: rgba(226,178,107,.5); background: rgba(226,178,107,.08); }
+  .check input:checked + .box::after { transform: scale(1); }
+  .check:hover { color: var(--ink-2); }
+
+  .hintline {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--dock-h) + 14px);
+    transform: translateX(-50%);
+    z-index: 6;
+    font: 8.5px var(--mono);
+    letter-spacing: .05em;
+    color: var(--faint);
+    white-space: nowrap;
+    pointer-events: none;
+    text-align: center;
+    transition: opacity .3s;
+  }
+  .hintline kbd { margin: 0 2px; }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--dock-h) + 42px);
+    transform: translate(-50%, 6px);
+    z-index: 9;
+    padding: 6px 12px;
+    border: 1px solid rgba(226,178,107,.26);
+    border-radius: 999px;
+    background: rgba(8,11,14,.92);
+    color: #e9d5b6;
+    font: 9px var(--mono);
+    letter-spacing: .05em;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .22s, transform .22s;
+    box-shadow: 0 8px 26px rgba(0,0,0,.4);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ---------- labels ---------- */
+  .leader { position: fixed; inset: 0; z-index: 4; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .labels { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+  .label {
+    position: absolute;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 3px 6px 3px 7px;
+    border: 1px solid rgba(226,178,107,.17);
+    border-radius: 4px;
+    background: rgba(7,10,13,.76);
+    color: #c7d1db;
+    font-size: 9.5px;
+    line-height: 1.1;
+    letter-spacing: .02em;
+    white-space: nowrap;
+    transform: translate(0, -50%);
+    pointer-events: auto;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: border-color .12s, color .12s, background .12s;
+    will-change: transform, left, top;
+  }
+  .label b { font: 8px var(--mono); font-weight: 400; color: var(--accent); letter-spacing: .03em; }
+  .label em { font: 7px var(--mono); font-style: normal; letter-spacing: .07em; color: var(--faint); text-transform: uppercase; }
+  .label:hover, .label.hov { border-color: rgba(226,178,107,.5); color: #fff; background: rgba(14,18,22,.92); }
+  .label.sel { border-color: rgba(226,178,107,.7); background: rgba(226,178,107,.10); color: #fff; }
+  .labels.off { display: none; }
+
+  .tooltip {
+    position: fixed;
+    z-index: 10;
+    top: 0; left: 0;
+    padding: 4px 8px;
+    border: 1px solid var(--line-2);
+    border-radius: 5px;
+    background: rgba(6,9,12,.92);
+    color: #dfe7ee;
+    font: 9.5px var(--sans);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(14px, 16px);
+    transition: opacity .1s;
+    box-shadow: 0 6px 20px rgba(0,0,0,.45);
+  }
+  .tooltip b { font: 8px var(--mono); color: var(--accent); font-weight: 400; margin-right: 6px; }
+  .tooltip.show { opacity: 1; }
+
+  /* ---------- help ---------- */
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(2,4,6,.62);
+    backdrop-filter: blur(5px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s;
+  }
+  .backdrop.on { opacity: 1; pointer-events: auto; }
+  .sheet {
+    width: min(560px, 100%);
+    max-height: min(640px, 86vh);
+    overflow: auto;
+    border: 1px solid var(--line-2);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(15,19,24,.98), rgba(8,11,14,.99));
+    box-shadow: 0 40px 100px rgba(0,0,0,.65);
+    padding: 22px 24px;
+    transform: translateY(6px);
+    transition: transform .22s;
+  }
+  .backdrop.on .sheet { transform: none; }
+  .sheet-head { display: flex; align-items: flex-start; gap: 12px; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+  .sheet-head h2 { margin: 0; font-size: 15px; letter-spacing: .08em; font-weight: 600; }
+  .sheet-head p { margin: 4px 0 0; font: 8px var(--mono); letter-spacing: .1em; color: var(--faint); text-transform: uppercase; }
+  .sheet-head button { margin-left: auto; font: 13px var(--mono); color: var(--faint); padding: 2px 5px; }
+  .sheet-head button:hover { color: var(--ink); }
+  .sheet h3 { margin: 18px 0 8px; font: 8px var(--mono); letter-spacing: .16em; color: var(--faint); text-transform: uppercase; }
+  .keys { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; }
+  .keys div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.045); }
+  .keys span { font-size: 10.5px; color: var(--ink-2); }
+  .keys kbd { white-space: nowrap; }
+  .sheet-note { margin: 16px 0 0; font: 9px/1.65 var(--mono); color: var(--faint); letter-spacing: .02em; }
+  .sheet-note b { color: var(--dim); font-weight: 400; }
+
+  .fallback {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    background: #06080a;
+    padding: 24px;
+    text-align: center;
+  }
+  .fallback[hidden] { display: none; }
+  .fallback div { max-width: 460px; }
+  .fallback h2 { font-size: 16px; letter-spacing: .04em; margin: 0 0 8px; }
+  .fallback p { font: 10px/1.7 var(--mono); color: var(--dim); }
+
+  @media (max-width: 1180px) {
+    .hud { width: 194px; }
+  }
+  @media (max-width: 900px) {
+    .badge.hide-sm { display: none; }
+    .labels { display: none; }
+    .leader { display: none; }
+    .dock .check { display: none; }
+  }
+  @media (max-width: 720px) {
+    .topbar { height: 56px; padding: 0 12px; gap: 8px; }
+    .mark { width: 30px; height: 30px; border-radius: 8px; }
+    .brand-copy h1 { font-size: 14px; }
+    .brand-copy p { font-size: 7.5px; letter-spacing: .1em; }
+    .topmeta .badge { display: none; }
+    .hud {
+      top: 64px;
+      right: 10px;
+      width: 148px;
+      padding: 9px 10px 8px;
+    }
+    .hud-ammo strong { font-size: 32px; }
+    .hud-ticks { display: none; }
+    .hud-ammo em { display: none; }
+    .hud-state { font-size: 7.5px; }
+    .panel { left: 10px; top: 64px; width: min(300px, calc(100vw - 20px)); bottom: calc(var(--dock-h) + 18px); z-index: 12; }
+    .dock {
+      bottom: 8px;
+      width: calc(100vw - 16px);
+      padding: 8px;
+      gap: 5px;
+      border-radius: 12px;
+    }
+    .dock-row { gap: 4px; }
+    .dock-label { display: none; }
+    .divider { height: 18px; margin: 0; }
+    .act { padding: 5px 7px 4px; font-size: 9.5px; }
+    .act em { display: none; }
+    .seg button { padding: 5px 7px 4px; font-size: 9.5px; }
+    .seg button em { display: none; }
+    .play { padding: 6px 8px; font-size: 9px; }
+    .check { font-size: 8.5px; }
+    .hintline { display: none; }
+    .toast { bottom: calc(var(--dock-h) + 16px); font-size: 8.5px; max-width: calc(100vw - 24px); white-space: normal; text-align: center; border-radius: 10px; }
+    .keys { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 430px) {
+    .brand-copy p { display: none; }
+    .icon-btn { height: 23px; padding: 0 6px; }
+    .act { padding: 5px 6px 4px; }
+    .hud { width: 132px; }
+    .hud-ammo strong { font-size: 28px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body { transition: none; }
+    .panel, .sheet, .toast { transition: none; }
+  }
+  body.poster #ui, body.poster #vignette, body.poster #grain { display: none !important; }
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="HK416 A5 三维模型"></canvas>
+<div id="vignette"></div>
+<div id="grain"></div>
+
+<div id="ui">
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.15">
+          <circle cx="12" cy="12" r="6.1"></circle>
+          <path d="M12 1.6v4.2M12 18.2v4.2M1.6 12h4.2M18.2 12h4.2"></path>
+          <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"></circle>
+        </svg>
+      </div>
+      <div class="brand-copy">
+        <h1>HK<span>416</span> <i>A5</i></h1>
+        <p>交互式拆解模型 · 5.56×45 mm NATO</p>
+      </div>
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="topmeta">
+      <span class="badge hide-sm"><i class="led"></i><b>WEBGL</b> · 0 DEPS</span>
+      <span class="badge hide-sm" id="fpsBadge">60 FPS</span>
+      <button class="icon-btn" id="btnParts" title="部件目录 (P)" aria-pressed="true">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2.5 4h11M2.5 8h11M2.5 12h7"></path></svg>
+        部件
+      </button>
+      <button class="icon-btn" id="btnSound" title="声音 (M)" aria-pressed="true">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9 2.5 5.3 5.4H2.5v5.2h2.8L9 13.5z"></path><path d="M11.4 5.4a3.6 3.6 0 0 1 0 5.2M13.3 3.5a6.3 6.3 0 0 1 0 9"></path></svg>
+        声音
+      </button>
+      <button class="icon-btn" id="btnHelp" title="快捷键 (?)">?</button>
+    </div>
+  </header>
+
+  <aside class="panel" id="partsPanel" aria-label="部件目录">
+    <div class="panel-head">
+      <h2>部件目录</h2>
+      <em id="partCount">19 COMPONENTS</em>
+      <button class="close" id="btnPanelClose" title="收起">×</button>
+    </div>
+    <div class="specs">
+      <div class="spec"><span>CALIBER</span><b>5.56×45 <u>NATO</u></b></div>
+      <div class="spec"><span>BARREL</span><b>368 mm <u>14.5"</u></b></div>
+      <div class="spec"><span>LENGTH</span><b>878 mm <u>STOCK OUT</u></b></div>
+      <div class="spec"><span>MASS</span><b>3.85 kg <u>EMPTY</u></b></div>
+    </div>
+    <div class="part-list" id="partList" role="list"></div>
+    <div class="part-detail" id="partDetail">
+      <div class="pd-empty">点击模型或上方目录选择部件。<br><b>拖拽旋转 · 滚轮缩放 · 右键拖拽平移</b></div>
+      <div class="pd-body">
+        <div class="pd-top">
+          <div>
+            <h3><span id="pdNum">01</span><b id="pdName">上机匣</b></h3>
+            <p id="pdEn">Upper Receiver</p>
+          </div>
+          <button class="pd-close" id="pdClose" title="取消选择">×</button>
+        </div>
+        <p class="pd-desc" id="pdDesc"></p>
+        <p class="pd-meta" id="pdMeta"></p>
+        <div class="pd-hints" id="pdHints"></div>
+      </div>
+    </div>
+  </aside>
+
+  <section class="hud" aria-label="状态">
+    <div class="hud-top"><span>ROUNDS</span><span class="hud-mode" id="hudMode">SEMI</span></div>
+    <div class="hud-ammo"><strong id="hudAmmo">30</strong><span class="plus" id="hudPlus">+1</span><em>LIVE</em></div>
+    <div class="hud-ticks" id="hudTicks"></div>
+    <div class="hud-state"><span id="hudChamber">CHAMBERED</span><span id="hudBolt">BOLT CLOSED</span></div>
+  </section>
+
+  <svg class="leader" id="leader" aria-hidden="true"></svg>
+  <div class="labels" id="labels"></div>
+  <div class="tooltip" id="tooltip"></div>
+
+  <div class="hintline" id="hintline">
+    拖拽旋转 · 滚轮缩放 · 点击部件 · <kbd>空格</kbd> 扣扳机 · <kbd>R</kbd> 换弹 · <kbd>?</kbd> 帮助
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <footer class="dock" id="dock">
+    <div class="dock-row">
+      <span class="dock-label">火力</span>
+      <div class="seg" id="modeSeg" role="group" aria-label="射击模式">
+        <button data-mode="safe" type="button">保险<em>SAFE</em></button>
+        <button data-mode="semi" type="button" class="on">单发<em>SEMI</em></button>
+        <button data-mode="auto" type="button">连发<em>AUTO</em></button>
+      </div>
+      <span class="divider"></span>
+      <button class="act" id="btnTrigger" type="button">扣扳机<em>HOLD / SPACE</em></button>
+      <button class="act" id="btnCharge" type="button">上膛<em>RACK / C</em></button>
+      <button class="act" id="btnReload" type="button">换弹<em>RELOAD / R</em></button>
+      <button class="act" id="btnMag" type="button">卸弹匣<em>MAG</em></button>
+      <button class="act" id="btnPort" type="button">抛壳口<em>PORT / E</em></button>
+    </div>
+    <div class="dock-row">
+      <span class="dock-label">分解</span>
+      <button class="play" id="btnExplodePlay" type="button">
+        <svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M3 1.6 10 6l-7 4.4z"></path></svg>
+        <span id="explodePlayLabel">播放分解</span>
+      </button>
+      <input id="explodeRange" type="range" min="0" max="100" value="0" step="1" aria-label="爆炸图程度">
+      <output class="readout" id="explodeOut">0%</output>
+      <label class="check"><input type="checkbox" id="labelsToggle" checked><span class="box"></span>标注</label>
+      <span class="divider"></span>
+      <button class="act small" id="btnView" type="button" title="切换视角 (V)">视角 · 立体<em></em></button>
+      <button class="act small" id="btnOrbit" type="button" aria-pressed="true" title="自动旋转">自动旋转<em></em></button>
+      <button class="act small" id="btnReset" type="button" title="复位">复位<em></em></button>
+    </div>
+  </footer>
+
+  <div class="backdrop" id="helpBackdrop">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="sheet-head">
+        <div>
+          <h2 id="helpTitle">操作说明</h2>
+          <p>HK416 A5 · interactive armory model</p>
+        </div>
+        <button id="btnHelpClose" type="button" aria-label="关闭">×</button>
+      </div>
+      <h3>Viewport</h3>
+      <div class="keys">
+        <div><span>旋转 / 平移</span><kbd>拖拽 / 右键拖拽</kbd></div>
+        <div><span>缩放</span><kbd>滚轮 / 双指</kbd></div>
+        <div><span>选择部件</span><kbd>点击</kbd></div>
+        <div><span>取消选择</span><kbd>Esc</kbd></div>
+      </div>
+      <h3>Weapon</h3>
+      <div class="keys">
+        <div><span>扣扳机 / 连发</span><kbd>按住 空格</kbd></div>
+        <div><span>上膛</span><kbd>C</kbd></div>
+        <div><span>换弹</span><kbd>R</kbd></div>
+        <div><span>抛壳口盖</span><kbd>E</kbd></div>
+        <div><span>射击模式</span><kbd>1 / 2 / 3</kbd></div>
+        <div><span>卸下弹匣</span><kbd>G</kbd></div>
+      </div>
+      <h3>Model</h3>
+      <div class="keys">
+        <div><span>爆炸图开关</span><kbd>X</kbd></div>
+        <div><span>标注</span><kbd>B</kbd></div>
+        <div><span>切换视角</span><kbd>V</kbd></div>
+        <div><span>声音</span><kbd>M</kbd></div>
+      </div>
+      <p class="sheet-note">
+        模型与动画全部由代码生成，无外部资源。枪机、击锤、缓冲簧、弹匣、抛壳口盖与翻转照门均可动；
+        爆炸图使用逐件轨迹与分离间距校验，展开过程中零件 AABB 不重叠。<br>
+        <b>提示：</b>拉机柄可沿枪身方向拖拽；弹匣可向下拖出；扣住扳机可连续射击。
+      </p>
+    </div>
+  </div>
+
+  <div class="fallback" id="fallback" hidden>
+    <div>
+      <h2>无法初始化 WebGL</h2>
+      <p>此展示需要 WebGL 1.0。请检查浏览器的硬件加速设置，或换用支持 WebGL 的浏览器。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================================
+   HK416 A5 — procedural interactive display model
+   Raw WebGL 1.0, no external assets. Geometry, materials, audio and animation
+   are generated at runtime.
+   ============================================================================ */
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const easeInOut = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+const easeIn = (t) => t * t * t;
+const TAU = Math.PI * 2;
+const DEG = Math.PI / 180;
+
+/* ------------------------------- matrix math ------------------------------- */
+const M4 = {
+  ident() { return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]); },
+  mul(a, b) {
+    const o = new Float32Array(16);
+    for (let c = 0; c < 4; c++) {
+      const b0 = b[c*4], b1 = b[c*4+1], b2 = b[c*4+2], b3 = b[c*4+3];
+      o[c*4]   = a[0]*b0 + a[4]*b1 + a[8]*b2  + a[12]*b3;
+      o[c*4+1] = a[1]*b0 + a[5]*b1 + a[9]*b2  + a[13]*b3;
+      o[c*4+2] = a[2]*b0 + a[6]*b1 + a[10]*b2 + a[14]*b3;
+      o[c*4+3] = a[3]*b0 + a[7]*b1 + a[11]*b2 + a[15]*b3;
+    }
+    return o;
+  },
+  mulAll(...ms) { let r = ms[0]; for (let i = 1; i < ms.length; i++) r = M4.mul(r, ms[i]); return r; },
+  trans(x, y, z) { return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]); },
+  scale(x, y, z) { return new Float32Array([x,0,0,0, 0,y,0,0, 0,0,z,0, 0,0,0,1]); },
+  rotX(a) { const c = Math.cos(a), s = Math.sin(a); return new Float32Array([1,0,0,0, 0,c,s,0, 0,-s,c,0, 0,0,0,1]); },
+  rotY(a) { const c = Math.cos(a), s = Math.sin(a); return new Float32Array([c,0,-s,0, 0,1,0,0, s,0,c,0, 0,0,0,1]); },
+  rotZ(a) { const c = Math.cos(a), s = Math.sin(a); return new Float32Array([c,s,0,0, -s,c,0,0, 0,0,1,0, 0,0,0,1]); },
+  persp(fovy, aspect, near, far) {
+    const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
+    return new Float32Array([f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0]);
+  },
+  ortho(l, r, b, t, n, f) {
+    return new Float32Array([2/(r-l),0,0,0, 0,2/(t-b),0,0, 0,0,-2/(f-n),0, -(r+l)/(r-l),-(t+b)/(t-b),-(f+n)/(f-n),1]);
+  },
+  lookAt(eye, center, up) {
+    let zx = eye[0]-center[0], zy = eye[1]-center[1], zz = eye[2]-center[2];
+    let l = Math.hypot(zx, zy, zz) || 1; zx /= l; zy /= l; zz /= l;
+    let xx = up[1]*zz - up[2]*zy, xy = up[2]*zx - up[0]*zz, xz = up[0]*zy - up[1]*zx;
+    l = Math.hypot(xx, xy, xz) || 1; xx /= l; xy /= l; xz /= l;
+    const yx = zy*xz - zz*xy, yy = zz*xx - zx*xz, yz = zx*xy - zy*xx;
+    return new Float32Array([
+      xx, yx, zx, 0,
+      xy, yy, zy, 0,
+      xz, yz, zz, 0,
+      -(xx*eye[0]+xy*eye[1]+xz*eye[2]),
+      -(yx*eye[0]+yy*eye[1]+yz*eye[2]),
+      -(zx*eye[0]+zy*eye[1]+zz*eye[2]), 1,
+    ]);
+  },
+  point(m, p, w = 1) {
+    return [
+      m[0]*p[0] + m[4]*p[1] + m[8]*p[2] + m[12]*w,
+      m[1]*p[0] + m[5]*p[1] + m[9]*p[2] + m[13]*w,
+      m[2]*p[0] + m[6]*p[1] + m[10]*p[2] + m[14]*w,
+    ];
+  },
+  dir(m, v) {
+    return [m[0]*v[0] + m[4]*v[1] + m[8]*v[2], m[1]*v[0] + m[5]*v[1] + m[9]*v[2], m[2]*v[0] + m[6]*v[1] + m[10]*v[2]];
+  },
+};
+const V3 = {
+  add: (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]],
+  sub: (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]],
+  mul: (a, s) => [a[0]*s, a[1]*s, a[2]*s],
+  dot: (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2],
+  cross: (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]],
+  len: (a) => Math.hypot(a[0], a[1], a[2]),
+  norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0]/l, a[1]/l, a[2]/l]; },
+  lerp: (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)],
+};
+
+/* ------------------------------- mesh builder ------------------------------ */
+class Geo {
+  constructor() { this.pos = []; this.nrm = []; this.uv = []; this.idx = []; }
+  vert(p, n, u = 0, v = 0) {
+    this.pos.push(p[0], p[1], p[2]);
+    this.nrm.push(n[0], n[1], n[2]);
+    this.uv.push(u, v);
+    return this.pos.length / 3 - 1;
+  }
+  quadP(p0, p1, p2, p3, n0, n1, n2, n3, uvs) {
+    const a = this.vert(p0, n0 || triNormal(p0, p1, p2), uvs ? uvs[0] : 0, uvs ? uvs[1] : 0);
+    const b = this.vert(p1, n1 || n0 || triNormal(p0, p1, p2), uvs ? uvs[2] : 1, uvs ? uvs[3] : 0);
+    const c = this.vert(p2, n2 || n0 || triNormal(p0, p1, p2), uvs ? uvs[4] : 1, uvs ? uvs[5] : 1);
+    const d = this.vert(p3, n3 || n0 || triNormal(p0, p1, p2), uvs ? uvs[6] : 0, uvs ? uvs[7] : 1);
+    this.idx.push(a, b, c, a, c, d);
+  }
+  quadAuto(p0, p1, p2, p3) {
+    const n = triNormal(p0, p1, p2);
+    this.quadP(p0, p1, p2, p3, n, n, n, n);
+  }
+  triP(p0, p1, p2, n0, n1, n2) {
+    const a = this.vert(p0, n0 || triNormal(p0, p1, p2));
+    const b = this.vert(p1, n1 || n0 || triNormal(p0, p1, p2));
+    const c = this.vert(p2, n2 || n0 || triNormal(p0, p1, p2));
+    this.idx.push(a, b, c);
+  }
+  append(other, m) {
+    const off = this.pos.length / 3;
+    for (let i = 0; i < other.pos.length; i += 3) {
+      const p = [other.pos[i], other.pos[i+1], other.pos[i+2]];
+      if (m) {
+        const q = M4.point(m, p);
+        this.pos.push(q[0], q[1], q[2]);
+        const n = [other.nrm[i], other.nrm[i+1], other.nrm[i+2]];
+        const nn = M4.dir(m, n);
+        this.nrm.push(nn[0], nn[1], nn[2]);
+      } else {
+        this.pos.push(p[0], p[1], p[2]);
+        this.nrm.push(other.nrm[i], other.nrm[i+1], other.nrm[i+2]);
+      }
+    }
+    this.uv.push(...other.uv);
+    for (const id of other.idx) this.idx.push(id + off);
+  }
+  aabb() {
+    const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < this.pos.length; i += 3) {
+      for (let k = 0; k < 3; k++) {
+        const v = this.pos[i+k];
+        if (v < mn[k]) mn[k] = v;
+        if (v > mx[k]) mx[k] = v;
+      }
+    }
+    return { min: mn, max: mx };
+  }
+  isEmpty() { return this.idx.length === 0; }
+}
+
+function triNormal(a, b, c) {
+  const u = [b[0]-a[0], b[1]-a[1], b[2]-a[2]];
+  const v = [c[0]-a[0], c[1]-a[1], c[2]-a[2]];
+  let n = [u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]];
+  const l = Math.hypot(n[0], n[1], n[2]) || 1;
+  return [n[0]/l, n[1]/l, n[2]/l];
+}
+
+/* rounded box: faces + 12 edge quarter-cylinders + 8 spherical corners.
+   Analytic normals; winding is irrelevant (culling disabled, normals flipped
+   for back faces). */
+function addRoundedBox(g, cx, cy, cz, hx, hy, hz, r = 0.0012, seg = 3) {
+  r = Math.min(r, Math.min(hx, hy, hz) * 0.92);
+  const ex = hx - r, ey = hy - r, ez = hz - r;
+  const P = (x, y, z) => [cx + x, cy + y, cz + z];
+  const face = (a, b, c, d, n) => g.quadP(a, b, c, d, n, n, n, n);
+  // +X / -X
+  face(P(hx, -ey, -ez), P(hx, ey, -ez), P(hx, ey, ez), P(hx, -ey, ez), [1,0,0]);
+  face(P(-hx, -ey, -ez), P(-hx, -ey, ez), P(-hx, ey, ez), P(-hx, ey, -ez), [-1,0,0]);
+  // +Y / -Y
+  face(P(-ex, hy, -ez), P(-ex, hy, ez), P(ex, hy, ez), P(ex, hy, -ez), [0,1,0]);
+  face(P(-ex, -hy, -ez), P(ex, -hy, -ez), P(ex, -hy, ez), P(-ex, -hy, ez), [0,-1,0]);
+  // +Z / -Z
+  face(P(-ex, -ey, hz), P(ex, -ey, hz), P(ex, ey, hz), P(-ex, ey, hz), [0,0,1]);
+  face(P(-ex, -ey, -hz), P(-ex, ey, -hz), P(ex, ey, -hz), P(ex, -ey, -hz), [0,0,-1]);
+
+  // 12 edges: parametric sweep along axis, quarter arc across the other two.
+  const axes = [
+    { ax: 0, u: 1, v: 2 },
+    { ax: 1, u: 0, v: 2 },
+    { ax: 2, u: 0, v: 1 },
+  ];
+  for (const A of axes) {
+    const e = [ex, ey, ez][A.ax];
+    const hu = [hx, hy, hz][A.u], hv = [hx, hy, hz][A.v];
+    const fu = [ex, ey, ez][A.u], fv = [ex, ey, ez][A.v];
+    for (const su of [-1, 1]) for (const sv of [-1, 1]) {
+      const rows = [];
+      for (let j = 0; j <= seg; j++) {
+        const th = (j / seg) * Math.PI / 2;
+        const cu = Math.cos(th), sv2 = Math.sin(th);
+        for (const s of [-1, 1]) {
+          const p = [0, 0, 0];
+          p[A.ax] = e * s;
+          p[A.u] = su * (fu + r * cu);
+          p[A.v] = sv * (fv + r * sv2);
+          const n = [0,0,0];
+          n[A.u] = su * cu;
+          n[A.v] = sv * sv2;
+          rows.push({ p: [cx + p[0], cy + p[1], cz + p[2]], n });
+        }
+      }
+      // rows are [j][endpoint], 2 per j
+      for (let j = 0; j < seg; j++) {
+        const a = rows[j*2], b = rows[j*2+1], c = rows[j*2+3], d = rows[j*2+2];
+        g.quadP(a.p, b.p, c.p, d.p, a.n, b.n, c.n, d.n);
+      }
+    }
+  }
+  // 8 spherical corners
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+    const rows = [];
+    for (let i = 0; i <= seg; i++) {
+      const phi = (i / seg) * Math.PI / 2;
+      const cp = Math.cos(phi), sp = Math.sin(phi);
+      for (let j = 0; j <= seg; j++) {
+        const th = (j / seg) * Math.PI / 2;
+        const n = [sx * cp * Math.cos(th), sy * cp * Math.sin(th), sz * sp];
+        rows.push({ p: [cx + sx*ex + r*n[0], cy + sy*ey + r*n[1], cz + sz*ez + r*n[2]], n });
+      }
+    }
+    const stride = seg + 1;
+    for (let i = 0; i < seg; i++) for (let j = 0; j < seg; j++) {
+      const a = rows[i*stride+j], b = rows[i*stride+j+1], c = rows[(i+1)*stride+j+1], d = rows[(i+1)*stride+j];
+      g.quadP(a.p, b.p, c.p, d.p, a.n, b.n, c.n, d.n);
+    }
+  }
+}
+
+function addBox(g, x0, x1, y0, y1, z0, z1, r = 0.0012, seg = 3) {
+  addRoundedBox(g, (x0+x1)/2, (y0+y1)/2, (z0+z1)/2, Math.abs(x1-x0)/2, Math.abs(y1-y0)/2, Math.abs(z1-z0)/2, r, seg);
+}
+
+function basisForAxis(axis) {
+  const a = V3.norm(axis);
+  const ref = Math.abs(a[1]) < 0.9 ? [0,1,0] : [1,0,0];
+  const u = V3.norm(V3.cross(a, ref));
+  const v = V3.cross(a, u);
+  return [u, v, a];
+}
+
+function addCylinder(g, p0, p1, r, seg = 18, caps = true, r1 = null) {
+  const axis = V3.sub(p1, p0);
+  const [u, v, a] = basisForAxis(axis);
+  const rA = r, rB = r1 == null ? r : r1;
+  const ring0 = [], ring1 = [];
+  for (let i = 0; i <= seg; i++) {
+    const th = (i / seg) * TAU;
+    const c = Math.cos(th), s = Math.sin(th);
+    const n = [u[0]*c + v[0]*s, u[1]*c + v[1]*s, u[2]*c + v[2]*s];
+    ring0.push({ p: [p0[0] + n[0]*rA, p0[1] + n[1]*rA, p0[2] + n[2]*rA], n });
+    ring1.push({ p: [p1[0] + n[0]*rB, p1[1] + n[1]*rB, p1[2] + n[2]*rB], n });
+  }
+  for (let i = 0; i < seg; i++) {
+    const a0 = ring0[i], b0 = ring0[i+1], b1 = ring1[i+1], a1 = ring1[i];
+    g.quadP(a0.p, b0.p, b1.p, a1.p, a0.n, b0.n, b1.n, a1.n);
+  }
+  if (caps) {
+    const n0 = V3.mul(a, -1), n1 = a;
+    for (let i = 0; i < seg; i++) {
+      g.triP(p0, ring0[i+1].p, ring0[i].p, n0, n0, n0);
+      g.triP(p1, ring1[i].p, ring1[i+1].p, n1, n1, n1);
+    }
+  }
+}
+
+function addTube(g, p0, p1, ro, ri, seg = 20, endCaps = true) {
+  const axis = V3.sub(p1, p0);
+  const [u, v, a] = basisForAxis(axis);
+  const rings = [];
+  for (const [p, sgn] of [[p0, -1], [p1, 1]]) {
+    const outer = [], inner = [];
+    for (let i = 0; i <= seg; i++) {
+      const th = (i / seg) * TAU;
+      const c = Math.cos(th), s = Math.sin(th);
+      const n = [u[0]*c + v[0]*s, u[1]*c + v[1]*s, u[2]*c + v[2]*s];
+      outer.push({ p: [p[0] + n[0]*ro, p[1] + n[1]*ro, p[2] + n[2]*ro], n });
+      inner.push({ p: [p[0] + n[0]*ri, p[1] + n[1]*ri, p[2] + n[2]*ri], n: [-n[0], -n[1], -n[2]] });
+    }
+    rings.push({ outer, inner, p, a: sgn });
+  }
+  for (let k = 0; k < 2; k++) {
+    const r = rings[k];
+    for (let i = 0; i < seg; i++) {
+      // outer
+      g.quadP(r.outer[i].p, r.outer[i+1].p, rings[1-k].outer[i+1].p, rings[1-k].outer[i].p,
+        r.outer[i].n, r.outer[i+1].n, rings[1-k].outer[i+1].n, rings[1-k].outer[i].n);
+      // inner
+      g.quadP(r.inner[i+1].p, r.inner[i].p, rings[1-k].inner[i].p, rings[1-k].inner[i+1].p,
+        r.inner[i+1].n, r.inner[i].n, rings[1-k].inner[i].n, rings[1-k].inner[i+1].n);
+    }
+    if (endCaps) {
+      const n = V3.mul(a, r.a);
+      for (let i = 0; i < seg; i++) {
+        g.quadP(r.outer[i].p, r.inner[i].p, r.inner[i+1].p, r.outer[i+1].p, n, n, n, n);
+      }
+    }
+  }
+}
+
+/* arc wall along +X, for the slotted flash hider. */
+function addArcWall(g, x0, x1, ro, ri, a0, a1, seg = 6) {
+  const P = (x, r, th) => [x, Math.sin(th)*r, Math.cos(th)*r];
+  const N = (r, th) => [0, Math.sin(th), Math.cos(th)];
+  const ro0 = [], ro1 = [], ri0 = [], ri1 = [];
+  for (let i = 0; i <= seg; i++) {
+    const th = lerp(a0, a1, i/seg);
+    ro0.push({ p: P(x0, ro, th), n: N(ro, th) });
+    ro1.push({ p: P(x1, ro, th), n: N(ro, th) });
+    const inward = [-N(ro, th)[0], -N(ro, th)[1], -N(ro, th)[2]];
+    ri0.push({ p: P(x0, ri, th), n: inward });
+    ri1.push({ p: P(x1, ri, th), n: inward });
+  }
+  for (let i = 0; i < seg; i++) {
+    g.quadP(ro0[i].p, ro0[i+1].p, ro1[i+1].p, ro1[i].p, ro0[i].n, ro0[i+1].n, ro0[i+1].n, ro0[i].n);
+    g.quadP(ri0[i+1].p, ri0[i].p, ri1[i].p, ri1[i+1].p, ri0[i+1].n, ri0[i].n, ri0[i].n, ri0[i+1].n);
+  }
+  // end faces
+  for (const [arrO, arrI, x] of [[ro0, ri0, x0], [ro1, ri1, x1]]) {
+    const n = x === x0 ? [-1,0,0] : [1,0,0];
+    for (let i = 0; i < seg; i++) {
+      g.quadP(arrO[i].p, arrI[i].p, arrI[i+1].p, arrO[i+1].p, n, n, n, n);
+    }
+  }
+}
+
+/* polygon helpers (CCW in XY) */
+function polyArea(pts) {
+  let a = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i], q = pts[(i+1) % pts.length];
+    a += p[0]*q[1] - q[0]*p[1];
+  }
+  return a / 2;
+}
+function ensureCCW(pts) {
+  if (polyArea(pts) < 0) return pts.slice().reverse();
+  return pts.slice();
+}
+function offsetPoly(pts, d) {
+  // d > 0 shrinks inward. Miter join, works for simple polygons.
+  const n = pts.length;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i-1+n)%n], p1 = pts[i], p2 = pts[(i+1)%n];
+    const e0 = [p1[0]-p0[0], p1[1]-p0[1]];
+    const e1 = [p2[0]-p1[0], p2[1]-p1[1]];
+    const l0 = Math.hypot(e0[0], e0[1]) || 1, l1 = Math.hypot(e1[0], e1[1]) || 1;
+    const n0 = [e0[1]/l0, -e0[0]/l0]; // outward for CCW
+    const n1 = [e1[1]/l1, -e1[0]/l1];
+    // lines p + n*(-d) + t*e
+    const a0 = p0[0] - n0[0]*d, b0 = p0[1] - n0[1]*d;
+    const a1 = p1[0] - n1[0]*d, b1 = p1[1] - n1[1]*d;
+    const den = e0[0]*e1[1] - e0[1]*e1[0];
+    if (Math.abs(den) < 1e-9) {
+      out.push([p1[0] - n1[0]*d, p1[1] - n1[1]*d]);
+    } else {
+      const t = ((a1-a0)*e1[1] - (b1-b0)*e1[0]) / den;
+      out.push([a0 + e0[0]*t, b0 + e0[1]*t]);
+    }
+  }
+  return out;
+}
+function triangulate(pts) {
+  const n = pts.length;
+  if (n < 3) return [];
+  const ccw = ensureCCW(pts);
+  const idx = [];
+  const remain = ccw.map((_, i) => i);
+  let guard = 0;
+  while (remain.length > 3 && guard++ < 400) {
+    let clipped = false;
+    for (let k = 0; k < remain.length; k++) {
+      const ia = remain[(k-1+remain.length)%remain.length], ib = remain[k], ic = remain[(k+1)%remain.length];
+      const a = ccw[ia], b = ccw[ib], c = ccw[ic];
+      const cross = (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]);
+      if (cross <= 1e-10) continue;
+      let contains = false;
+      for (const j of remain) {
+        if (j === ia || j === ib || j === ic) continue;
+        const p = ccw[j];
+        const d1 = (b[0]-a[0])*(p[1]-a[1]) - (b[1]-a[1])*(p[0]-a[0]);
+        const d2 = (c[0]-b[0])*(p[1]-b[1]) - (c[1]-b[1])*(p[0]-b[0]);
+        const d3 = (a[0]-c[0])*(p[1]-c[1]) - (a[1]-c[1])*(p[0]-c[0]);
+        if (d1 >= 0 && d2 >= 0 && d3 >= 0) { contains = true; break; }
+      }
+      if (!contains) {
+        idx.push([ia, ib, ic]);
+        remain.splice(k, 1);
+        clipped = true;
+        break;
+      }
+    }
+    if (!clipped) break;
+  }
+  if (remain.length === 3) idx.push([remain[0], remain[1], remain[2]]);
+  return idx;
+}
+
+/* Extruded 2D profile along Z with a chamfered rim. */
+function addExtrude(g, points, z0, z1, bevel = 0, opts = {}) {
+  const pts = ensureCCW(points);
+  const w = Math.abs(z1 - z0);
+  const dir = Math.sign(z1 - z0) || 1;
+  const zA = Math.min(z0, z1), zB = Math.max(z0, z1);
+  const b = Math.min(bevel, w * 0.45);
+  const inner = b > 1e-5 ? offsetPoly(pts, b) : pts;
+  const rings = b > 1e-5 ? [
+    { pts: inner, z: zA },
+    { pts, z: zA + b },
+    { pts, z: zB - b },
+    { pts: inner, z: zB },
+  ] : [
+    { pts, z: zA },
+    { pts, z: zB },
+  ];
+  // side walls between rings
+  for (let k = 0; k < rings.length - 1; k++) {
+    const A = rings[k], B = rings[k+1];
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i+1) % pts.length;
+      g.quadAuto([A.pts[i][0], A.pts[i][1], A.z], [A.pts[j][0], A.pts[j][1], A.z],
+                 [B.pts[j][0], B.pts[j][1], B.z], [B.pts[i][0], B.pts[i][1], B.z]);
+    }
+  }
+  // caps
+  const capIdx = triangulate(inner);
+  for (const [a, c, d] of capIdx) {
+    const pa = [inner[a][0], inner[a][1], zA], pb = [inner[c][0], inner[c][1], zA], pc = [inner[d][0], inner[d][1], zA];
+    g.triP(pa, pb, pc, [0,0,-dir], [0,0,-dir], [0,0,-dir]);
+    const qa = [inner[a][0], inner[a][1], zB], qb = [inner[c][0], inner[c][1], zB], qc = [inner[d][0], inner[d][1], zB];
+    if (polyArea(inner) >= 0) g.triP(qa, qc, qb, [0,0,dir], [0,0,dir], [0,0,dir]);
+    else g.triP(qa, qb, qc, [0,0,dir], [0,0,dir], [0,0,dir]);
+  }
+}
+
+/* Rounded rectangle cross-section, returns [{u,v,nu,nv}] (u = depth, v = width). */
+function roundedRectSection(hd, hw, r, seg = 3) {
+  r = Math.min(r, Math.min(hd, hw) * 0.9);
+  const cu = hd - r, cv = hw - r;
+  const out = [];
+  const corners = [
+    [cu, cv, 0],
+    [-cu, cv, Math.PI/2],
+    [-cu, -cv, Math.PI],
+    [cu, -cv, Math.PI*1.5],
+  ];
+  for (const [cu2, cv2, a0] of corners) {
+    for (let i = 0; i <= seg; i++) {
+      const a = a0 + (i/seg) * Math.PI/2;
+      const nu = Math.cos(a), nv = Math.sin(a);
+      out.push({ u: cu2 + nu*r, v: cv2 + nv*r, nu, nv });
+    }
+  }
+  return out;
+}
+
+/* Sweep a rounded-rect cross-section along a planar centerline in XY. */
+function addSweep(g, stations, section, capStart = true, capEnd = true, scale = 1) {
+  const rings = [];
+  for (const s of stations) {
+    const t = V3.norm([s.t[0], s.t[1], 0]);
+    const n = [-t[1], t[0]];
+    const ring = [];
+    for (const sp of section) {
+      const u = sp.u * scale, v = sp.v * scale;
+      ring.push({
+        p: [s.p[0] + n[0]*u, s.p[1] + n[1]*u, v],
+        n: [n[0]*sp.nu, n[1]*sp.nu, sp.nv],
+      });
+    }
+    rings.push(ring);
+  }
+  const K = section.length;
+  for (let k = 0; k < rings.length - 1; k++) {
+    const A = rings[k], B = rings[k+1];
+    for (let i = 0; i < K; i++) {
+      const j = (i+1) % K;
+      g.quadP(A[i].p, A[j].p, B[j].p, B[i].p, A[i].n, A[j].n, B[j].n, B[i].n);
+    }
+  }
+  const last = stations[stations.length-1], first = stations[0];
+  const capRing = (ring, s, sign) => {
+    const t = V3.norm([s.t[0], s.t[1], 0]);
+    const n = [t[0]*sign, t[1]*sign, 0];
+    if (!polyArea2D(ring)) return;
+    for (let i = 1; i < K - 1; i++) {
+      g.triP(ring[0].p, ring[i].p, ring[i+1].p, n, n, n);
+    }
+  };
+  if (capStart) capRing(rings[0], first, -1);
+  if (capEnd) capRing(rings[rings.length-1], last, 1);
+}
+function polyArea2D(ring) {
+  let a = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const p = ring[i].p, q = ring[(i+1)%ring.length].p;
+    a += p[0]*q[2] - q[0]*p[2];
+  }
+  return a;
+}
+
+/* Tube swept along a polyline (springs, sight apertures). */
+function addPathTube(g, path, radius, closed = false, seg = 6) {
+  const n = path.length;
+  const rings = [];
+  for (let i = 0; i < n; i++) {
+    const p = path[i];
+    const a = path[closed ? (i-1+n)%n : Math.max(0, i-1)];
+    const b = path[closed ? (i+1)%n : Math.min(n-1, i+1)];
+    let t = V3.norm(V3.sub(b, a));
+    if (!isFinite(t[0])) t = [1,0,0];
+    const ref = Math.abs(t[1]) < 0.9 ? [0,1,0] : [0,0,1];
+    const u = V3.norm(V3.cross(t, ref));
+    const v = V3.cross(t, u);
+    const ring = [];
+    for (let j = 0; j <= seg; j++) {
+      const th = (j/seg) * TAU;
+      const c = Math.cos(th), s = Math.sin(th);
+      const nn = [u[0]*c + v[0]*s, u[1]*c + v[1]*s, u[2]*c + v[2]*s];
+      ring.push({ p: [p[0] + nn[0]*radius, p[1] + nn[1]*radius, p[2] + nn[2]*radius], n: nn });
+    }
+    rings.push(ring);
+  }
+  const stop = closed ? n : n - 1;
+  for (let k = 0; k < stop; k++) {
+    const A = rings[k], B = rings[(k+1)%n];
+    for (let j = 0; j < seg; j++) {
+      g.quadP(A[j].p, A[j+1].p, B[j+1].p, B[j].p, A[j].n, A[j+1].n, B[j+1].n, B[j].n);
+    }
+  }
+  if (!closed) {
+    const pa = path[0], pb = path[n-1];
+    const ta = V3.norm(V3.sub(path[1], pa));
+    const tb = V3.norm(V3.sub(pb, path[n-2]));
+    for (let j = 0; j < seg; j++) {
+      g.triP(pa, rings[0][j].p, rings[0][j+1].p, V3.mul(ta, -1), V3.mul(ta, -1), V3.mul(ta, -1));
+      g.triP(pb, rings[n-1][j+1].p, rings[n-1][j].p, tb, tb, tb);
+    }
+  }
+}
+
+function addHelix(g, x0, x1, cy, cz, coilR, wireR, turns, perTurn = 16, wireSeg = 6) {
+  const path = [];
+  const total = turns * perTurn;
+  for (let i = 0; i <= total; i++) {
+    const t = i / total;
+    const a = t * turns * TAU;
+    path.push([lerp(x0, x1, t), cy + Math.cos(a) * coilR, cz + Math.sin(a) * coilR]);
+  }
+  addPathTube(g, path, wireR, false, wireSeg);
+}
+
+function addDecalQuad(g, x0, x1, y0, y1, z, side = 1) {
+  // side=1 faces +Z, side=-1 faces -Z; UVs remain readable from the outside.
+  let p0, p1, p2, p3, uvs;
+  if (side > 0) {
+    p0 = [x0, y0, z]; p1 = [x1, y0, z]; p2 = [x1, y1, z]; p3 = [x0, y1, z];
+    uvs = [0,0, 1,0, 1,1, 0,1];
+  } else {
+    p0 = [x1, y0, z]; p1 = [x0, y0, z]; p2 = [x0, y1, z]; p3 = [x1, y1, z];
+    uvs = [0,0, 1,0, 1,1, 0,1];
+  }
+  const n = [0,0,side];
+  g.quadP(p0, p1, p2, p3, n, n, n, n, uvs);
+}
+
+/* ============================== materials ================================= */
+/* Linear-space albedo, metallic and roughness. Decal materials get a runtime
+   canvas texture keyed by `decal`; the shader alpha-tests their stencil. */
+const MATS = {
+  upper:     { col: [0.052, 0.056, 0.062], metal: 0.86, rough: 0.34 },
+  lower:     { col: [0.043, 0.046, 0.051], metal: 0.84, rough: 0.41 },
+  handguard: { col: [0.038, 0.041, 0.045], metal: 0.72, rough: 0.45 },
+  rail:      { col: [0.055, 0.058, 0.063], metal: 0.9,  rough: 0.29 },
+  steel:     { col: [0.078, 0.081, 0.088], metal: 1.0,  rough: 0.30 },
+  barrel:    { col: [0.068, 0.071, 0.078], metal: 1.0,  rough: 0.28 },
+  bcg:       { col: [0.105, 0.108, 0.116], metal: 1.0,  rough: 0.22 },
+  polymer:   { col: [0.028, 0.029, 0.031], metal: 0.03, rough: 0.68 },
+  polymer2:  { col: [0.019, 0.020, 0.022], metal: 0.02, rough: 0.84 },
+  rubber:    { col: [0.010, 0.010, 0.011], metal: 0.0,  rough: 0.95 },
+  dark:      { col: [0.004, 0.0045, 0.005], metal: 0.25, rough: 0.82 },
+  brass:     { col: [0.50, 0.34, 0.12], metal: 1.0, rough: 0.24 },
+  copper:    { col: [0.62, 0.30, 0.12], metal: 1.0, rough: 0.28 },
+  white:     { col: [0.66, 0.66, 0.63], metal: 0.05, rough: 0.55 },
+  decalUpper: { col: [1, 1, 1], metal: 0.2, rough: 0.55, decal: "upperMark" },
+  decalLower: { col: [1, 1, 1], metal: 0.2, rough: 0.55, decal: "lowerMark" },
+  decalHG:    { col: [1, 1, 1], metal: 0.2, rough: 0.55, decal: "hgMark" },
+  decalSel:   { col: [1, 1, 1], metal: 0.2, rough: 0.55, decal: "selMark" },
+};
+
+/* Explosion directions are final translations (metres) applied along a
+   straight line. Delays stagger the groups; see `explodeProgress`. */
+const PARTS = [];
+const PARTS_BY_ID = Object.create(null);
+
+function makePart(def) {
+  const batches = [];
+  const add = (matKey, xf) => {
+    const g = new Geo();
+    batches.push({ geo: g, mat: matKey, xf: xf || null });
+    return g;
+  };
+  def.build(add);
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  let tris = 0;
+  for (const b of batches) {
+    const a = b.geo.aabb();
+    for (let i = 0; i < 3; i++) {
+      if (a.min[i] < mn[i]) mn[i] = a.min[i];
+      if (a.max[i] > mx[i]) mx[i] = a.max[i];
+    }
+    tris += b.geo.idx.length / 3;
+  }
+  const part = {
+    ...def,
+    batches,
+    aabb: { min: mn, max: mx },
+    tris,
+    matrix: M4.ident(),
+    worldAABB: null,
+    visible: def.visible || (() => true),
+    pose: def.pose || (() => ({})),
+    delay: def.delay || 0,
+    offset: def.offset || [0, 0, 0],
+    pivot: def.pivot || null,
+  };
+  PARTS.push(part);
+  PARTS_BY_ID[part.id] = part;
+  return part;
+}
+
+/* Extrude a closed 2D loop given in (z, y) along X, hollow. Used by the
+   octagonal handguard and its collars. */
+function addYZExtrusion(g, pts, x0, x1, thickness) {
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i], q = pts[(i+1) % pts.length];
+    area += p[0]*q[1] - q[0]*p[1];
+  }
+  const sgn = area >= 0 ? 1 : -1;
+  const n = pts.length;
+  const vn = [], inner = [];
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i-1+n)%n], p1 = pts[i], p2 = pts[(i+1)%n];
+    const e0 = [p1[0]-p0[0], p1[1]-p0[1]];
+    const e1 = [p2[0]-p1[0], p2[1]-p1[1]];
+    const l0 = Math.hypot(e0[0], e0[1]) || 1, l1 = Math.hypot(e1[0], e1[1]) || 1;
+    const n0 = [sgn*e0[1]/l0, -sgn*e0[0]/l0];
+    const n1 = [sgn*e1[1]/l1, -sgn*e1[0]/l1];
+    let v = [n0[0]+n1[0], n0[1]+n1[1]];
+    const lv = Math.hypot(v[0], v[1]) || 1;
+    v = [v[0]/lv, v[1]/lv];
+    vn.push(v);
+    inner.push([p1[0] - v[0]*thickness, p1[1] - v[1]*thickness]);
+  }
+  for (let i = 0; i < n; i++) {
+    const j = (i+1) % n;
+    // outer wall
+    g.quadP(
+      [x0, pts[i][1], pts[i][0]], [x0, pts[j][1], pts[j][0]],
+      [x1, pts[j][1], pts[j][0]], [x1, pts[i][1], pts[i][0]],
+      [0, vn[i][1], vn[i][0]], [0, vn[j][1], vn[j][0]],
+      [0, vn[j][1], vn[j][0]], [0, vn[i][1], vn[i][0]]
+    );
+    // inner wall
+    g.quadP(
+      [x0, inner[i][1], inner[i][0]], [x1, inner[i][1], inner[i][0]],
+      [x1, inner[j][1], inner[j][0]], [x0, inner[j][1], inner[j][0]],
+      [0, -vn[i][1], -vn[i][0]], [0, -vn[i][1], -vn[i][0]],
+      [0, -vn[j][1], -vn[j][0]], [0, -vn[j][1], -vn[j][0]]
+    );
+    // end annuli
+    for (const [x, nx] of [[x0, -1], [x1, 1]]) {
+      g.quadP(
+        [x, pts[i][1], pts[i][0]], [x, pts[j][1], pts[j][0]],
+        [x, inner[j][1], inner[j][0]], [x, inner[i][1], inner[i][0]],
+        [nx, 0, 0], [nx, 0, 0], [nx, 0, 0], [nx, 0, 0]
+      );
+    }
+  }
+}
+
+function addRail(g, x0, x1, yBase, yTop, zHalf = 0.0105, tooth = 0.0064, pitch = 0.0104) {
+  addBox(g, x0, x1, yBase, yBase + 0.0055, -zHalf, zHalf, 0.0008);
+  for (let x = x0 + 0.002; x + tooth <= x1 + 0.0005; x += pitch) {
+    addBox(g, x, Math.min(x + tooth, x1), yBase + 0.0055, yTop, -zHalf, zHalf, 0.0006);
+  }
+}
+
+function defineParts() {
+  /* ---------------------------------- 01 upper --------------------------- */
+  makePart({
+    id: "upper", num: 1,
+    cn: "上机匣", en: "Upper Receiver",
+    desc: "一体式铝合金上机匣，顶部集成皮卡汀尼导轨。右侧为抛壳口、黄铜导流板与辅助推机柄；内部容纳枪机框、枪机与枪管节套，是武器的主要承力件。",
+    spec: "7075-T6 · 阳极氧化 · 20 mm 导轨",
+    offset: [0, 0, 0], delay: 0,
+    build(add) {
+      const g = add("upper");
+      // split side walls: left solid, right frame leaves the ejection port open
+      addBox(g, -0.115, 0.105, -0.020, 0.030, -0.021, -0.0175, 0.0012);
+      addBox(g, -0.115, 0.105, 0.018, 0.030, 0.0175, 0.021, 0.0010);
+      addBox(g, -0.115, 0.105, -0.020, -0.004, 0.0175, 0.021, 0.0010);
+      addBox(g, 0.064, 0.105, -0.004, 0.018, 0.0175, 0.021, 0.0010);
+      addBox(g, -0.115, 0.006, -0.004, 0.018, 0.0175, 0.021, 0.0010);
+      // decks
+      addBox(g, -0.115, 0.108, 0.028, 0.033, -0.022, 0.022, 0.0020);
+      addBox(g, -0.115, 0.105, -0.023, -0.018, -0.021, 0.021, 0.0018);
+      // front barrel collar
+      addBox(g, 0.100, 0.112, -0.020, 0.032, -0.022, 0.022, 0.0020);
+      // rear charging-handle housing (slot stays open)
+      addBox(g, -0.118, -0.108, -0.018, 0.030, -0.021, -0.0075, 0.0015);
+      addBox(g, -0.118, -0.108, -0.018, 0.030, 0.0075, 0.021, 0.0015);
+      addBox(g, -0.118, -0.108, 0.024, 0.030, -0.021, 0.021, 0.0015);
+      addBox(g, -0.118, -0.108, -0.020, -0.012, -0.021, 0.021, 0.0015);
+      // ejection port raised frame
+      addBox(g, 0.003, 0.067, 0.018, 0.0205, 0.021, 0.0223, 0.0005);
+      addBox(g, 0.003, 0.067, -0.0065, -0.004, 0.021, 0.0223, 0.0005);
+      addBox(g, 0.003, 0.0065, -0.004, 0.018, 0.021, 0.0223, 0.0005);
+      addBox(g, 0.0635, 0.067, -0.004, 0.018, 0.021, 0.0223, 0.0005);
+      // forward assist housing
+      addBox(g, -0.062, -0.048, 0.006, 0.028, 0.019, 0.0245, 0.0015);
+      // brass deflector wedge
+      addExtrude(g, [[-0.006,-0.006],[0.010,-0.002],[0.012,0.011],[-0.002,0.017]], 0.021, 0.0295, 0.0014);
+      // top rail
+      addRail(g, -0.106, 0.106, 0.033, 0.0435, 0.0105);
+      // rear sight mount
+      addBox(g, -0.094, -0.070, 0.039, 0.0485, -0.010, 0.010, 0.0012);
+
+      const st = add("steel");
+      // barrel extension / chamber block, visible through the port
+      addCylinder(st, [0.056, 0.004, 0], [0.098, 0.004, 0], 0.0145, 20, true);
+      addTube(st, [0.094, 0.004, 0], [0.104, 0.004, 0], 0.017, 0.0145, 18, true);
+      // forward assist plunger
+      addCylinder(st, [-0.060, 0.016, 0.026], [-0.042, 0.016, 0.026], 0.0062, 16, true);
+      addCylinder(st, [-0.044, 0.016, 0.026], [-0.040, 0.016, 0.026], 0.0072, 16, true);
+      for (let i = 0; i < 6; i++) {
+        const a = i * Math.PI / 3;
+        addBox(st, -0.046, -0.040, 0.016 + Math.sin(a)*0.0062 - 0.0007, 0.016 + Math.sin(a)*0.0062 + 0.0007,
+          0.026 + Math.cos(a)*0.0062 - 0.0007, 0.026 + Math.cos(a)*0.0062 + 0.0007, 0.0002);
+      }
+      // interior side liner and lower tray give the port depth
+      const dk = add("dark");
+      addBox(dk, 0.006, 0.064, -0.017, 0.020, 0.0135, 0.0165, 0.0008);
+      addBox(dk, 0.006, 0.064, -0.0165, -0.0125, 0.002, 0.0175, 0.0008);
+
+      const dec = add("decalUpper");
+      addDecalQuad(dec, -0.088, -0.016, -0.008, 0.0155, -0.02135, -1);
+    },
+  });
+
+  /* ---------------------------------- 02 lower --------------------------- */
+  makePart({
+    id: "lower", num: 2,
+    cn: "下机匣", en: "Lower Receiver",
+    desc: "承载击发机构、弹匣井与枪托接口。与上机匣通过前后销钉连接；快慢机、空仓挂机与弹匣释放钮都安装在这个壳体上。",
+    spec: "7075-T6 · 击发机构座",
+    offset: [0, -0.12, 0], delay: 0.02,
+    build(add) {
+      const g = add("lower");
+      addExtrude(g, [
+        [-0.115,-0.018], [-0.115,-0.055], [-0.103,-0.070], [-0.090,-0.076],
+        [-0.086,-0.056], [-0.030,-0.056], [-0.026,-0.076], [-0.010,-0.070],
+        [0.002,-0.058], [0.002,-0.018]
+      ], -0.019, 0.019, 0.0024);
+      // magazine well: hollow so the magazine can pass through
+      addBox(g, 0.062, 0.072, -0.110, -0.020, -0.021, 0.021, 0.0016);
+      addBox(g, -0.018, -0.008, -0.108, -0.020, -0.021, 0.021, 0.0016);
+      addBox(g, -0.018, 0.072, -0.110, -0.020, -0.021, -0.0165, 0.0014);
+      addBox(g, -0.018, 0.072, -0.110, -0.020, 0.0165, 0.021, 0.0014);
+      // flared lip
+      addBox(g, 0.072, 0.0745, -0.114, -0.108, -0.021, 0.021, 0.0010);
+      addBox(g, -0.0205, -0.018, -0.114, -0.108, -0.021, 0.021, 0.0010);
+      addBox(g, -0.020, 0.074, -0.114, -0.108, -0.0235, -0.021, 0.0010);
+      addBox(g, -0.020, 0.074, -0.114, -0.108, 0.021, 0.0235, 0.0010);
+      // trigger guard
+      addBox(g, -0.090, -0.003, -0.112, -0.104, -0.006, 0.006, 0.0022);
+      addBox(g, -0.013, -0.003, -0.108, -0.070, -0.006, 0.006, 0.0022);
+      addBox(g, -0.092, -0.082, -0.108, -0.076, -0.006, 0.006, 0.0022);
+      // rear buffer-tube boss
+      addBox(g, -0.119, -0.098, -0.030, -0.006, -0.021, 0.021, 0.0016);
+      // trigger slot shadow
+      const dk = add("dark");
+      addBox(dk, -0.075, -0.032, -0.081, -0.077, -0.0018, 0.0018, 0.0006);
+      addBox(dk, -0.107, -0.010, -0.065, -0.0195, -0.0192, -0.0184, 0.0004);
+
+      const st = add("steel");
+      // selector boss
+      addCylinder(st, [-0.072, -0.047, -0.0218], [-0.072, -0.047, 0.0218], 0.0078, 18, true);
+      // hammer / trigger pins
+      addCylinder(st, [-0.012, -0.045, -0.0206], [-0.012, -0.045, 0.0206], 0.0034, 14, true);
+      addCylinder(st, [-0.055, -0.052, -0.0206], [-0.055, -0.052, 0.0206], 0.0034, 14, true);
+      // takedown pins
+      addCylinder(st, [-0.105, -0.009, -0.0218], [-0.105, -0.009, 0.0218], 0.0048, 16, true);
+      addCylinder(st, [0.055, -0.017, -0.0218], [0.055, -0.017, 0.0218], 0.0048, 16, true);
+      // bolt catch paddle (left)
+      addBox(st, -0.020, -0.005, -0.042, -0.030, -0.0255, -0.0195, 0.0012);
+      addBox(st, -0.010, -0.002, -0.036, -0.027, -0.0295, -0.0255, 0.0010);
+      // magazine release button (right)
+      addCylinder(st, [0.043, -0.046, 0.019], [0.043, -0.046, 0.0255], 0.0072, 18, true);
+      addCylinder(st, [0.043, -0.046, 0.0255], [0.043, -0.046, 0.027], 0.0052, 16, true);
+      // selector detent
+      addBox(st, -0.095, -0.088, -0.030, -0.024, -0.0225, -0.0198, 0.0008);
+      // buffer tube castle area visual ring
+      addTube(st, [-0.121, -0.002, 0], [-0.114, -0.002, 0], 0.0195, 0.014, 18, true);
+
+      const dec = add("decalLower");
+      addDecalQuad(dec, 0.006, 0.066, -0.096, -0.054, 0.0213, 1);
+      const sel = add("decalSel");
+      addDecalQuad(sel, -0.092, -0.058, -0.055, -0.024, -0.0193, -1);
+    },
+  });
+
+  /* -------------------------------- 03 handguard ------------------------- */
+  makePart({
+    id: "handguard", num: 3,
+    cn: "护木", en: "Handguard",
+    desc: "自由浮动式八边形护木，M-LOK 槽位不接触枪管，避免护木受力影响弹道。后端锁紧在枪管节套上，前端带 QD 背带座。",
+    spec: "M-LOK · FREE FLOAT · 八边形",
+    offset: [0.02, 0.12, 0], delay: 0.035,
+    build(add) {
+      const g = add("handguard");
+      const ring = [
+        [-0.018, 0.033], [0.018, 0.033], [0.030, 0.018], [0.030, -0.020],
+        [0.018, -0.030], [-0.018, -0.030], [-0.030, -0.020], [-0.030, 0.018],
+      ];
+      addYZExtrusion(g, ring, 0.104, 0.298, 0.0045);
+      // rear collar and front cap, subtly larger
+      const big = ring.map(([z, y]) => [z * 1.08, y * 1.06 + 0.0005]);
+      addYZExtrusion(g, big, 0.098, 0.114, 0.0052);
+      addYZExtrusion(g, ring, 0.290, 0.302, 0.0050);
+      // top rail
+      addRail(g, 0.108, 0.298, 0.033, 0.0435, 0.0105);
+      // front sight mount
+      addBox(g, 0.236, 0.262, 0.039, 0.0488, -0.0105, 0.0105, 0.0012);
+      addBox(g, 0.236, 0.262, 0.044, 0.050, -0.013, -0.0095, 0.0009);
+      addBox(g, 0.236, 0.262, 0.044, 0.050, 0.0095, 0.013, 0.0009);
+      // M-LOK slots (sides + bottom)
+      const dk = add("dark");
+      for (const x of [0.140, 0.180, 0.220, 0.260]) {
+        addBox(dk, x, x + 0.022, -0.011, 0.005, 0.0302, 0.0308, 0.0004);
+        addBox(dk, x, x + 0.022, -0.011, 0.005, -0.0308, -0.0302, 0.0004);
+      }
+      for (const x of [0.148, 0.188, 0.228]) {
+        addBox(dk, x, x + 0.022, -0.0308, -0.0302, -0.011, 0.011, 0.0004);
+      }
+      // QD sockets
+      const st = add("steel");
+      addCylinder(st, [0.282, -0.012, 0.0300], [0.282, -0.012, 0.0338], 0.0050, 14, true);
+      addCylinder(st, [0.282, -0.012, -0.0338], [0.282, -0.012, -0.0300], 0.0050, 14, true);
+      addCylinder(st, [0.282, -0.012, 0.0338], [0.282, -0.012, 0.0342], 0.0068, 16, true);
+      addCylinder(st, [0.282, -0.012, -0.0342], [0.282, -0.012, -0.0338], 0.0068, 16, true);
+      // decal
+      const dec = add("decalHG");
+      addDecalQuad(dec, 0.120, 0.152, 0.006, 0.018, 0.03025, 1);
+    },
+  });
+
+  /* ---------------------------------- 04 barrel -------------------------- */
+  makePart({
+    id: "barrel", num: 4,
+    cn: "枪管", en: "Barrel",
+    desc: "14.5 英寸（368 mm）冷锻枪管，1:7 英寸缠距，镀铬内膛。中段车削减轻，靠近枪口处安装短行程活塞导气座。",
+    spec: '368 mm · 1:7" · 5.56 NATO',
+    offset: [0.17, 0, 0], delay: 0.055,
+    build(add) {
+      const g = add("barrel");
+      // barrel extension and nut (mostly enclosed)
+      addCylinder(g, [0.050, 0.004, 0], [0.092, 0.004, 0], 0.0160, 20, true);
+      addCylinder(g, [0.090, 0.004, 0], [0.114, 0.004, 0], 0.0235, 24, true);
+      addTube(g, [0.112, 0.004, 0], [0.116, 0.004, 0], 0.0245, 0.0235, 24, true);
+      addCylinder(g, [0.114, 0.004, 0], [0.135, 0.004, 0], 0.0138, 20, true);
+      addCylinder(g, [0.135, 0.004, 0], [0.300, 0.004, 0], 0.0093, 20, true);
+      addCylinder(g, [0.300, 0.004, 0], [0.372, 0.004, 0], 0.0081, 20, true);
+      addCylinder(g, [0.372, 0.004, 0], [0.376, 0.004, 0], 0.0108, 20, true);
+      // subtle index ring and gas port
+      addCylinder(g, [0.128, 0.004, 0], [0.132, 0.004, 0], 0.0102, 20, true);
+      const dk = add("dark");
+      addCylinder(dk, [0.224, 0.004, 0], [0.231, 0.004, 0], 0.0094, 16, true);
+      addCylinder(dk, [0.371, 0.004, 0], [0.377, 0.004, 0], 0.0082, 16, true);
+    },
+  });
+
+  /* -------------------------------- 05 muzzle --------------------------- */
+  makePart({
+    id: "muzzle", num: 5,
+    cn: "枪口装置", en: "Muzzle Brake",
+    desc: "鸟笼式消焰补偿器，六道侧向排气槽降低枪口焰与后坐；前端冠部保护膛线，后端以 1/2×28 螺纹固定在枪管上。",
+    spec: "1/2×28 · 钢制 · 鸟笼式",
+    offset: [0.24, 0, 0], delay: 0.11,
+    build(add) {
+      const g = add("steel");
+      addTube(g, [0.372, 0.004, 0], [0.434, 0.004, 0], 0.0116, 0.0066, 22, true);
+      for (let k = 0; k < 6; k++) {
+        const a0 = (k * 60 + 4) * DEG, a1 = ((k + 1) * 60 - 4) * DEG;
+        addArcWall(g, 0.378, 0.424, 0.0147, 0.0116, a0, a1, 5);
+      }
+      addTube(g, [0.372, 0.004, 0], [0.379, 0.004, 0], 0.0152, 0.0116, 24, true);
+      addTube(g, [0.423, 0.004, 0], [0.434, 0.004, 0], 0.0158, 0.0116, 24, true);
+      addTube(g, [0.433, 0.004, 0], [0.436, 0.004, 0], 0.0158, 0.0066, 24, true);
+      const dk = add("dark");
+      addCylinder(dk, [0.406, 0.004, 0], [0.409, 0.004, 0], 0.0066, 20, true);
+    },
+  });
+
+  /* -------------------------------- 06 gas block ------------------------ */
+  makePart({
+    id: "gasblock", num: 6,
+    cn: "导气座", en: "Gas Block",
+    desc: "短行程活塞导气座。HK416 的燃气不直接进入机匣，高压燃气在这里推动活塞，污物与热量在前端排出。",
+    spec: "SHORT-STROKE PISTON",
+    offset: [0.17, 0.08, 0], delay: 0.075,
+    build(add) {
+      const g = add("steel");
+      addBox(g, 0.212, 0.242, -0.012, 0.010, -0.013, 0.013, 0.0022);
+      addCylinder(g, [0.214, 0.016, 0], [0.240, 0.016, 0], 0.0088, 20, true);
+      addCylinder(g, [0.204, 0.016, 0], [0.214, 0.016, 0], 0.0052, 16, true);
+      addCylinder(g, [0.238, 0.016, 0], [0.246, 0.016, 0], 0.0098, 18, true);
+      const dk = add("dark");
+      addBox(g, 0.218, 0.236, -0.0165, -0.012, -0.006, 0.006, 0.0008);
+      addCylinder(dk, [0.222, -0.0145, 0.004], [0.228, -0.0145, 0.004], 0.0022, 12, true);
+      addCylinder(dk, [0.222, -0.0145, -0.004], [0.228, -0.0145, -0.004], 0.0022, 12, true);
+    },
+  });
+
+  /* -------------------------------- 07 piston rod ----------------------- */
+  makePart({
+    id: "piston", num: 7,
+    cn: "活塞推杆", en: "Piston Push Rod",
+    desc: "短行程活塞推杆。导气座内的活塞被燃气推动后，通过推杆撞击枪机框顶部的导气键；这是 HK416 与直接导气 AR 的关键差异。",
+    spec: "PISTON PUSH ROD · 短行程",
+    offset: [-0.02, 0.05, 0], delay: 0.08,
+    build(add) {
+      const g = add("steel");
+      addCylinder(g, [0.100, 0.0175, 0], [0.222, 0.0175, 0], 0.0027, 14, true);
+      addCylinder(g, [0.100, 0.0175, 0], [0.114, 0.0175, 0], 0.0044, 16, true);
+      addCylinder(g, [0.212, 0.0175, 0], [0.226, 0.0175, 0], 0.0050, 16, true);
+      addTube(g, [0.114, 0.0175, 0], [0.118, 0.0175, 0], 0.0052, 0.0040, 16, true);
+    },
+  });
+
+  /* ---------------------------------- 08 BCG ---------------------------- */
+  makePart({
+    id: "bcg", num: 8,
+    cn: "枪机框组件", en: "Bolt Carrier Group",
+    desc: "一体式枪机框、导气键、击针与回转闭锁枪机。后坐时抽壳、抛壳并压倒击锤，复进时从弹匣推弹入膛并闭锁。",
+    spec: "CARRIER + 7-LUG BOLT",
+    offset: [0.02, 0.11, 0], delay: 0.05,
+    pose: () => ({ tx: -0.05 * sim.bolt }),
+    build(add) {
+      const g = add("bcg");
+      addCylinder(g, [-0.100, 0.000, 0], [0.030, 0.000, 0], 0.0115, 22, true);
+      addCylinder(g, [-0.128, 0.000, 0], [-0.100, 0.000, 0], 0.0062, 16, true);
+      addTube(g, [-0.100, 0.000, 0], [-0.094, 0.000, 0], 0.0119, 0.0062, 18, true);
+      // gas key
+      addBox(g, -0.028, 0.012, 0.007, 0.021, -0.0065, 0.0065, 0.0012);
+      addBox(g, -0.002, 0.014, 0.015, 0.020, -0.005, 0.005, 0.0008);
+      // bolt head
+      addCylinder(g, [0.030, 0.000, 0], [0.070, 0.000, 0], 0.0092, 20, true);
+      addCylinder(g, [0.070, 0.000, 0], [0.076, 0.000, 0], 0.0082, 18, true);
+      // lugs
+      const lug = new Geo();
+      addBox(lug, 0.064, 0.075, 0.0082, 0.0122, -0.0030, 0.0030, 0.0005);
+      for (let k = 0; k < 7; k++) g.append(lug, M4.rotX(k * TAU / 7));
+      // extractor and cam pin
+      addBox(g, 0.044, 0.072, 0.0060, 0.0115, -0.0035, 0.0035, 0.0006);
+      addCylinder(g, [0.021, -0.0125, 0], [0.021, 0.0125, 0], 0.0025, 12, true);
+      // firing pin tail
+      addCylinder(g, [-0.132, 0.000, 0], [-0.100, 0.000, 0], 0.0024, 12, true);
+      const dk = add("dark");
+      addCylinder(dk, [0.074, 0.000, 0], [0.0762, 0.000, 0], 0.0068, 18, true);
+    },
+  });
+
+  /* ------------------------------ 09 charging handle -------------------- */
+  makePart({
+    id: "charge", num: 9,
+    cn: "拉机柄", en: "Charging Handle",
+    desc: "非随动 T 形拉机柄，双侧均可释放。拉动时通过机匣内轨道带动枪机框后退，压缩复进簧并压倒击锤。",
+    spec: "NON-RECIPROCATING · AMBI",
+    interactive: true,
+    hints: ["沿枪身拖拽", "点击上膛", "C 键"],
+    offset: [-0.19, 0.13, 0.15], delay: 0.12,
+    pose: () => ({ tx: -0.06 * sim.charge }),
+    build(add) {
+      const g = add("steel");
+      addBox(g, -0.120, -0.054, 0.011, 0.019, -0.004, 0.004, 0.0012);
+      addBox(g, -0.132, -0.118, 0.009, 0.023, -0.0045, 0.0045, 0.0014);
+      addBox(g, -0.132, -0.114, 0.007, 0.026, 0.010, 0.0175, 0.0016);
+      addBox(g, -0.132, -0.114, 0.007, 0.026, -0.0175, -0.010, 0.0016);
+      // latch and serrations
+      addBox(g, -0.128, -0.112, 0.020, 0.028, -0.0185, -0.010, 0.0010);
+      addBox(g, -0.126, -0.116, 0.006, 0.011, 0.0135, 0.0200, 0.0008);
+      for (let i = 0; i < 3; i++) {
+        addBox(g, -0.126 + i * 0.0038, -0.123 + i * 0.0038, 0.007, 0.026, 0.0175, 0.0185, 0.0002);
+        addBox(g, -0.126 + i * 0.0038, -0.123 + i * 0.0038, 0.007, 0.026, -0.0185, -0.0175, 0.0002);
+      }
+      const dk = add("dark");
+      addBox(g, -0.122, -0.116, 0.012, 0.018, 0.0180, 0.0205, 0.0004);
+    },
+  });
+
+  /* ----------------------------- 10 buffer & spring --------------------- */
+  makePart({
+    id: "buffer", num: 10,
+    cn: "缓冲器与复进簧", en: "Buffer & Spring",
+    desc: "缓冲器与复进簧位于枪托延长管内。枪机后坐时推动缓冲器压缩复进簧，复进簧随后释放能量，把枪机推回闭锁位置。",
+    spec: "CARBINE BUFFER · 复进簧",
+    offset: [-0.03, 0.16, 0], delay: 0,
+    build(add) {
+      const springScale = () => M4.mul(M4.trans(-0.30, 0, 0), M4.scale(1 - 0.409 * sim.bolt, 1, 1), M4.trans(0.30, 0, 0));
+      const bufferMove = () => M4.trans(-0.045 * sim.bolt, 0, 0);
+      const sp = add("steel", springScale);
+      addHelix(sp, -0.300, -0.190, 0.0005, 0.0005, 0.0121, 0.00135, 9, 18, 5);
+      const bf = add("steel", bufferMove);
+      addCylinder(bf, [-0.190, 0.004, 0], [-0.135, 0.004, 0], 0.0144, 20, true);
+      addCylinder(bf, [-0.170, 0.004, 0], [-0.160, 0.004, 0], 0.0149, 20, true);
+      addCylinder(bf, [-0.155, 0.004, 0], [-0.145, 0.004, 0], 0.0149, 20, true);
+      const rb = add("rubber", bufferMove);
+      addCylinder(rb, [-0.198, 0.004, 0], [-0.188, 0.004, 0], 0.0148, 20, true);
+      const dk = add("dark", bufferMove);
+      addCylinder(dk, [-0.192, 0.004, 0], [-0.190, 0.004, 0], 0.0147, 20, true);
+    },
+  });
+
+  /* ---------------------------------- 11 stock --------------------------- */
+  makePart({
+    id: "stock", num: 11,
+    cn: "枪托", en: "Stock",
+    desc: "5 档可调伸缩枪托，橡胶托底板与 QD 背带孔。内部的缓冲管兼作复进簧室，是后坐系统的一部分。",
+    spec: "5-POSITION · QD · 缓冲管",
+    offset: [-0.13, -0.02, 0], delay: 0.025,
+    build(add) {
+      const g = add("polymer");
+      addExtrude(g, [
+        [-0.468, 0.020], [-0.400, 0.031], [-0.340, 0.033], [-0.300, 0.027],
+        [-0.272, 0.017], [-0.262, -0.012], [-0.268, -0.041], [-0.300, -0.058],
+        [-0.380, -0.062], [-0.440, -0.052], [-0.468, -0.034],
+      ], -0.020, 0.020, 0.003);
+      // cheek riser
+      addBox(g, -0.412, -0.300, 0.031, 0.041, -0.018, 0.018, 0.003);
+      addBox(g, -0.408, -0.306, 0.040, 0.0435, -0.014, 0.014, 0.002);
+      // adjustable lever under the front
+      addBox(g, -0.302, -0.272, -0.074, -0.058, -0.008, 0.008, 0.002);
+      addBox(g, -0.320, -0.300, -0.074, -0.065, -0.006, 0.006, 0.0015);
+      // sling slot shadows
+      const dk = add("dark");
+      addBox(dk, -0.402, -0.360, -0.016, 0.002, 0.0201, 0.0208, 0.0005);
+      addBox(dk, -0.402, -0.360, -0.016, 0.002, -0.0208, -0.0201, 0.0005);
+      // rubber buttpad with grooves
+      const rp = add("rubber");
+      addBox(rp, -0.480, -0.466, -0.056, 0.030, -0.021, 0.021, 0.004);
+      for (let i = 0; i < 3; i++) {
+        addBox(rp, -0.482, -0.478, -0.046 + i * 0.024, -0.040 + i * 0.024, -0.0215, 0.0215, 0.0012);
+      }
+      // buffer tube / castle nut / end plate
+      const st = add("steel");
+      addTube(st, [-0.300, 0.002, 0], [-0.088, 0.002, 0], 0.0170, 0.0142, 24, true);
+      addCylinder(st, [-0.116, 0.002, 0], [-0.098, 0.002, 0], 0.0204, 24, true);
+      for (let i = 0; i < 3; i++) {
+        addCylinder(dk, [-0.114 + i * 0.006, 0.002, 0], [-0.113 + i * 0.006, 0.002, 0], 0.0208, 24, true);
+      }
+      addBox(st, -0.099, -0.093, -0.024, 0.028, -0.023, 0.023, 0.0015);
+      // QD socket
+      addCylinder(st, [-0.360, -0.018, -0.0212], [-0.360, -0.018, 0.0212], 0.0054, 16, true);
+      addCylinder(st, [-0.360, -0.018, -0.0205], [-0.360, -0.018, 0.0205], 0.0034, 14, true);
+    },
+  });
+
+  /* ---------------------------------- 12 grip ---------------------------- */
+  makePart({
+    id: "grip", num: 12,
+    cn: "握把", en: "Pistol Grip",
+    desc: "25° 倾角手枪握把，前后防滑纹与底部密封盖。握持位置决定扳机指的自然角度，也影响整枪的人机工效。",
+    spec: "25° · POLYMER · 防滑纹",
+    offset: [-0.02, -0.30, 0], delay: 0.06,
+    build(add) {
+      const M = M4.mul(M4.trans(-0.093, -0.055, 0), M4.rotZ(-0.30));
+      const g = add("polymer");
+      const sub = new Geo();
+      addExtrude(sub, [
+        [-0.020, 0.002], [0.020, 0.002], [0.024, -0.018], [0.023, -0.045],
+        [0.017, -0.075], [0.012, -0.105], [0.004, -0.126], [-0.008, -0.130],
+        [-0.020, -0.122], [-0.026, -0.095], [-0.028, -0.060], [-0.026, -0.025],
+      ], -0.015, 0.015, 0.0035);
+      g.append(sub, M);
+      const dk = add("dark");
+      for (let i = 0; i < 3; i++) {
+        const sub2 = new Geo();
+        addBox(sub2, 0.0205, 0.0245, -0.034 - i * 0.023, -0.026 - i * 0.023, -0.012, 0.012, 0.0012);
+        dk.append(sub2, M);
+      }
+      const cap = add("polymer2");
+      const sub3 = new Geo();
+      addBox(sub3, -0.022, 0.012, -0.140, -0.128, -0.0155, 0.0155, 0.003);
+      cap.append(sub3, M);
+    },
+  });
+
+  /* ---------------------------------- 13 magazine ----------------------- */
+  makePart({
+    id: "mag", num: 13,
+    cn: "弹匣", en: "Magazine",
+    desc: "30 发双排交错弹匣，侧面观察孔便于快速确认余弹。弧形弹匣体匹配 5.56 弹壳的锥度，托弹簧把弹逐发送到进弹口。",
+    spec: "30 RD · STANAG · 钢/聚合物",
+    offset: [0.03, -0.20, 0], delay: 0.0,
+    interactive: true,
+    hints: ["向下拖出", "点击卸下", "R 换弹"],
+    visible: () => sim.magVisible,
+    pose: () => ({
+      tx: 0.020 * sim.magDrop,
+      ty: -0.235 * sim.magDrop,
+      rz: 0.10 * sim.magDrop,
+    }),
+    pivot: [0.022, -0.060, 0],
+    build(add) {
+      const station = (t) => {
+        const y = -0.060 - 0.195 * t;
+        const x = 0.022 + 0.026 * t * t + 0.006 * t;
+        const dx = 0.052 * t + 0.006;
+        return { p: [x, y], t: [dx, -0.195] };
+      };
+      const stations = [];
+      for (let i = 0; i <= 12; i++) stations.push(station(i / 12));
+      const section = roundedRectSection(0.031, 0.013, 0.0060, 3);
+      const g = add("polymer");
+      addSweep(g, stations, section, true, true);
+      // baseplate
+      addBox(g, 0.022, 0.092, -0.281, -0.258, -0.017, 0.017, 0.0035);
+      addBox(g, 0.018, 0.094, -0.284, -0.279, -0.018, 0.018, 0.0025);
+      // feed lips
+      addBox(g, -0.006, 0.050, -0.066, -0.056, 0.006, 0.012, 0.0018);
+      addBox(g, -0.006, 0.050, -0.066, -0.056, -0.012, -0.006, 0.0018);
+      // ribs
+      for (const t of [0.22, 0.50, 0.78]) {
+        const a = station(clamp(t - 0.018, 0, 1)), b = station(clamp(t + 0.018, 0, 1));
+        addSweep(g, [a, b], section, false, false, 1.035);
+      }
+      // witness holes
+      const dk = add("dark");
+      for (const t of [0.24, 0.44, 0.64, 0.84]) {
+        const s = station(t);
+        for (const zs of [-1, 1]) {
+          addCylinder(dk, [s.p[0], s.p[1], zs * 0.0126], [s.p[0], s.p[1], zs * 0.0135], 0.0034, 14, true);
+        }
+      }
+      // top round + follower
+      const br = add("brass");
+      addCylinder(br, [0.000, -0.057, 0], [0.042, -0.057, 0], 0.0048, 16, true);
+      addCylinder(br, [-0.004, -0.057, 0], [0.001, -0.057, 0], 0.0053, 16, true);
+      const cu = add("copper");
+      addCylinder(cu, [0.042, -0.057, 0], [0.055, -0.057, 0], 0.0047, 14, true, 0.0018);
+      const org = add("polymer2");
+      addBox(org, -0.004, 0.034, -0.066, -0.059, -0.008, 0.008, 0.0015);
+    },
+  });
+
+  /* ---------------------------------- 14 trigger ------------------------- */
+  makePart({
+    id: "trigger", num: 14,
+    cn: "扳机", en: "Trigger",
+    desc: "单动扳机，扣动时释放击锤。松开后扳机簧把它推回待击位置；半自动射击必须松开扳机才能再次击发。",
+    spec: "SINGLE-STAGE · 钢制",
+    offset: [-0.02, -0.24, 0], delay: 0.05,
+    interactive: true,
+    hints: ["按住扣动", "空格键"],
+    pose: () => ({ rz: -0.24 * sim.triggerPull }),
+    pivot: [-0.055, -0.052, 0],
+    build(add) {
+      const M = M4.trans(-0.055, -0.052, 0);
+      const g = add("steel");
+      const sub = new Geo();
+      addExtrude(sub, [
+        [0.003, 0.006], [0.009, 0.002], [0.008, -0.012], [0.004, -0.026],
+        [-0.001, -0.036], [-0.007, -0.038], [-0.010, -0.034], [-0.008, -0.028],
+        [-0.004, -0.020], [-0.002, -0.010], [0.000, 0.002],
+      ], -0.0055, 0.0055, 0.0014);
+      g.append(sub, M);
+      const dk = add("dark");
+      const dsub = new Geo();
+      addBox(dsub, 0.0035, 0.0055, -0.032, -0.006, -0.0016, 0.0016, 0.0004);
+      dk.append(dsub, M);
+    },
+  });
+
+  /* ---------------------------------- 15 hammer -------------------------- */
+  makePart({
+    id: "hammer", num: 15,
+    cn: "击锤", en: "Hammer",
+    desc: "内置击锤由枪机框后坐时压倒待击。击发时击锤向前旋转，打击击针尾端，引燃底火。",
+    spec: "SPRING-LOADED · 待击",
+    offset: [-0.005, -0.06, -0.06], delay: 0.05,
+    pose: () => ({ rz: 0.72 * sim.hammer }),
+    pivot: [-0.012, -0.045, 0],
+    build(add) {
+      const M = M4.trans(-0.012, -0.045, 0);
+      const g = add("steel");
+      const sub = new Geo();
+      addExtrude(sub, [
+        [0.004, 0.000], [0.009, 0.006], [0.006, 0.015], [-0.002, 0.019],
+        [-0.013, 0.021], [-0.022, 0.017], [-0.025, 0.009], [-0.019, 0.002], [-0.008, 0.000],
+      ], -0.006, 0.006, 0.0015);
+      g.append(sub, M);
+      const dk = add("dark");
+      addCylinder(dk, [-0.012, -0.045, -0.0066], [-0.012, -0.045, 0.0066], 0.0032, 12, true);
+    },
+  });
+
+  /* ---------------------------------- 16 selector ------------------------ */
+  makePart({
+    id: "selector", num: 16,
+    cn: "快慢机", en: "Selector",
+    desc: "保险 / 单发 / 连发三档，A5 采用双侧操作。保险位置会锁住扳机与击锤，防止走火。",
+    spec: "SAFE / SEMI / AUTO · AMBI",
+    offset: [0, -0.08, -0.10], delay: 0.08,
+    interactive: true,
+    hints: ["点击切换档位"],
+    pose: () => ({ rz: sim.selectorAngle }),
+    pivot: [-0.072, -0.047, 0],
+    build(add) {
+      const g = add("steel");
+      addCylinder(g, [-0.072, -0.047, -0.029], [-0.072, -0.047, 0.029], 0.0058, 18, true);
+      // left lever (rearward in SAFE)
+      addBox(g, -0.103, -0.061, -0.0525, -0.0415, -0.029, -0.024, 0.0016);
+      addBox(g, -0.104, -0.096, -0.054, -0.040, -0.034, -0.024, 0.0014);
+      // right ambi lever
+      addBox(g, -0.094, -0.062, -0.052, -0.043, 0.024, 0.028, 0.0014);
+      addBox(g, -0.097, -0.090, -0.053, -0.042, 0.028, 0.032, 0.0012);
+      const w = add("white");
+      addBox(w, -0.1025, -0.099, -0.0505, -0.0475, -0.0342, -0.0335, 0.0004);
+    },
+  });
+
+  /* --------------------------- 17 ejection port cover ------------------- */
+  makePart({
+    id: "cover", num: 17,
+    cn: "抛壳口盖", en: "Ejection Port Cover",
+    desc: "弹簧防尘盖，平时封闭右侧抛壳口。射击时被枪机框顶开，也可手动开合，避免沙尘进入机匣。",
+    spec: "SPRING-HINGED · 防尘",
+    offset: [0, 0.01, 0.10], delay: 0.055,
+    interactive: true,
+    hints: ["点击开合", "E 键"],
+    pose: () => ({ ry: 1.86 * sim.cover }),
+    pivot: [0.066, 0.0075, 0.0225],
+    build(add) {
+      const g = add("upper");
+      addBox(g, 0.004, 0.066, -0.0055, 0.0205, 0.0225, 0.0255, 0.0016);
+      addBox(g, 0.001, 0.007, -0.0065, 0.0215, 0.0220, 0.0258, 0.0012);
+      addBox(g, 0.058, 0.066, -0.0065, 0.0215, 0.0218, 0.0260, 0.0012);
+      const st = add("steel");
+      addCylinder(st, [0.066, -0.012, 0.0235], [0.066, 0.028, 0.0235], 0.0020, 12, true);
+      addCylinder(st, [0.062, -0.002, 0.0230], [0.062, 0.017, 0.0230], 0.0024, 12, true);
+      const dk = add("dark");
+      addBox(dk, 0.018, 0.050, 0.0005, 0.0115, 0.0255, 0.0258, 0.0003);
+    },
+  });
+
+  /* ------------------------------ 18 front sight ------------------------- */
+  makePart({
+    id: "frontsight", num: 18,
+    cn: "前照门", en: "Front Sight",
+    desc: "翻转式机械准星，折叠后平贴导轨，不遮挡光学瞄具。柱状准星被两侧护翼保护，立起后与后照门构成机械瞄具基线。",
+    spec: "FLIP-UP · POST · 护翼",
+    offset: [0, 0.15, 0], delay: 0.1,
+    interactive: true,
+    hints: ["点击翻转"],
+    pose: () => ({ rz: -Math.PI / 2 * sim.sightFront }),
+    pivot: [0.248, 0.049, 0],
+    build(add) {
+      const px = 0.248, py = 0.049;
+      const g = add("upper");
+      // folded: lies rearward along the rail
+      addBox(g, px - 0.032, px - 0.003, py - 0.002, py + 0.0045, -0.011, -0.0075, 0.0014);
+      addBox(g, px - 0.032, px - 0.003, py - 0.002, py + 0.0045, 0.0075, 0.011, 0.0014);
+      addBox(g, px - 0.030, px - 0.006, py + 0.003, py + 0.0065, -0.006, 0.006, 0.0012);
+      const st = add("steel");
+      addCylinder(st, [px, py, -0.0115], [px, py, 0.0115], 0.0029, 14, true);
+      addCylinder(st, [px - 0.030, py + 0.0012, 0], [px - 0.002, py + 0.0012, 0], 0.0014, 10, true);
+      const w = add("white");
+      addCylinder(w, [px - 0.0335, py + 0.0012, 0], [px - 0.0315, py + 0.0012, 0], 0.0017, 10, true);
+    },
+  });
+
+  /* ------------------------------ 19 rear sight -------------------------- */
+  makePart({
+    id: "rearsight", num: 19,
+    cn: "后照门", en: "Rear Sight",
+    desc: "翻转式觇孔照门，折叠后平贴在导轨上。与准星配合完成机械瞄准；觇孔限制视线，让眼睛自然对齐准星。",
+    spec: "FLIP-UP · APERTURE",
+    offset: [0, 0.15, 0], delay: 0.1,
+    interactive: true,
+    hints: ["点击翻转"],
+    pose: () => ({ rz: -Math.PI / 2 * sim.sightRear }),
+    pivot: [-0.082, 0.049, 0],
+    build(add) {
+      const px = -0.082, py = 0.049;
+      const g = add("upper");
+      addBox(g, px - 0.030, px - 0.002, py - 0.002, py + 0.005, -0.0115, -0.0075, 0.0015);
+      addBox(g, px - 0.030, px - 0.002, py - 0.002, py + 0.005, 0.0075, 0.0115, 0.0015);
+      addBox(g, px - 0.028, px - 0.006, py + 0.0035, py + 0.007, -0.0055, 0.0055, 0.0012);
+      const st = add("steel");
+      addCylinder(st, [px, py, -0.012], [px, py, 0.012], 0.0029, 14, true);
+      // folded aperture lies flat above the ears; raising rotates it upright
+      const path = [];
+      for (let i = 0; i < 28; i++) {
+        const a = (i / 28) * TAU;
+        path.push([px - 0.028 + Math.cos(a) * 0.0068, py + 0.0072, Math.sin(a) * 0.0068]);
+      }
+      addPathTube(st, path, 0.0012, true, 5);
+      addBox(st, px - 0.009, px - 0.003, py + 0.004, py + 0.008, -0.0018, 0.0018, 0.0006);
+      const w = add("white");
+      addBox(w, px - 0.0285, px - 0.0275, py + 0.0071, py + 0.0073, -0.0014, 0.0014, 0.0002);
+    },
+  });
+}
+
+/* ============================== simulation ================================ */
+const sim = {
+  mode: "semi",
+  magRounds: 30,
+  stowedRounds: 30,
+  chambered: true,
+  magIn: true,
+  magVisible: true,
+  bolt: 0,
+  boltLocked: false,
+  charge: 0,
+  hammer: 0,
+  triggerPull: 0,
+  selectorAngle: Math.PI / 2,
+  cover: 0,
+  coverTarget: 0,
+  sightFront: 0,
+  sightFrontTarget: 0,
+  sightRear: 0,
+  sightRearTarget: 0,
+  magDrop: 0,
+  triggerHeld: false,
+  triggerLocked: false,
+  cycle: false,
+  charging: false,
+  reloading: false,
+  dryLatch: false,
+  explode: 0,
+  explodeTarget: 0,
+  sound: true,
+  autoOrbit: true,
+  selected: null,
+  hovered: null,
+  labelsOn: true,
+  view: "hero",
+  time: 0,
+  lastShotAt: -10,
+  shots: 0,
+  recoil: 0,
+  flash: 0,
+  flashAge: 1,
+  toastId: 0,
+};
+
+const viewport = { W: innerWidth, H: innerHeight, dpr: 1 };
+const safe = { x0: 20, y0: 74, x1: innerWidth - 20, y1: innerHeight - 160, cx: innerWidth / 2, cy: innerHeight / 2 };
+
+/* ------------------------------- tween / timers --------------------------- */
+const easeFns = {
+  linear: (t) => t,
+  in: (t) => t * t * t,
+  out: (t) => 1 - Math.pow(1 - t, 3),
+  inout: (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+};
+const tweens = new Map();
+function tween(key, to, dur, opts = {}) {
+  const from = sim[key];
+  const delay = opts.delay || 0;
+  if (dur <= 0.0001 && !delay) {
+    sim[key] = to;
+    if (opts.done) opts.done();
+    return;
+  }
+  tweens.set(key, {
+    from, to, start: sim.time + delay, dur,
+    ease: easeFns[opts.ease || "inout"],
+    done: opts.done || null,
+  });
+}
+function cancelTween(key) { tweens.delete(key); }
+function updateTweens() {
+  for (const [key, tw] of tweens) {
+    if (sim.time < tw.start) continue;
+    const u = (sim.time - tw.start) / tw.dur;
+    if (u >= 1) {
+      sim[key] = tw.to;
+      tweens.delete(key);
+      if (tw.done) tw.done();
+    } else {
+      sim[key] = tw.from + (tw.to - tw.from) * tw.ease(u);
+    }
+  }
+}
+let timers = [];
+function after(delay, fn, tag) {
+  timers.push({ at: sim.time + delay, fn, tag: tag || "misc" });
+}
+function updateTimers() {
+  if (!timers.length) return;
+  const due = [];
+  const rest = [];
+  for (const t of timers) (t.at <= sim.time ? due : rest).push(t);
+  if (!due.length) return;
+  timers = rest;
+  due.sort((a, b) => a.at - b.at);
+  for (const t of due) {
+    try { t.fn(); } catch (err) { console.error(err); }
+  }
+}
+function clearTimers(tag) {
+  timers = tag ? timers.filter((t) => t.tag !== tag) : [];
+}
+
+/* ---------------------------------- audio -------------------------------- */
+const Snd = {
+  ctx: null, mix: null, noiseBuf: null,
+  init() {
+    if (this.ctx) {
+      if (this.ctx.state === "suspended") this.ctx.resume();
+      return;
+    }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    let ctx;
+    try { ctx = new AC(); } catch { return; }
+    this.ctx = ctx;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -16;
+    comp.knee.value = 18;
+    comp.ratio.value = 5;
+    comp.attack.value = .002;
+    comp.release.value = .18;
+    const out = ctx.createGain();
+    out.gain.value = sim.sound ? .52 : 0;
+    comp.connect(out);
+    out.connect(ctx.destination);
+    this.mix = comp;
+    this.out = out;
+    const len = Math.floor(ctx.sampleRate * 1.0);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    this.noiseBuf = buf;
+  },
+  setOn(on) {
+    sim.sound = on;
+    if (!this.ctx) { if (on) this.init(); return; }
+    this.out.gain.setTargetAtTime(on ? .52 : 0, this.ctx.currentTime, .04);
+  },
+  burst({ dur = .05, gain = .15, type = "bandpass", f0 = 2200, f1 = null, q = 1.2, delay = 0, rate = 1 }) {
+    if (!this.ctx || !sim.sound) return;
+    const ctx = this.ctx, t = ctx.currentTime + delay;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.playbackRate.value = rate;
+    const f = ctx.createBiquadFilter();
+    f.type = type;
+    f.Q.value = q;
+    f.frequency.setValueAtTime(Math.max(30, f0), t);
+    if (f1) f.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(.0002, gain), t + .0025);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(this.mix);
+    src.start(t); src.stop(t + dur + .03);
+  },
+  tone({ f0 = 160, f1 = 60, dur = .1, gain = .12, type = "sine", delay = 0 }) {
+    if (!this.ctx || !sim.sound) return;
+    const ctx = this.ctx, t = ctx.currentTime + delay;
+    const o = ctx.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(Math.max(20, f0), t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(.0002, gain), t + .003);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g); g.connect(this.mix);
+    o.start(t); o.stop(t + dur + .03);
+  },
+  click(freq = 1900, gain = .08, delay = 0) {
+    this.burst({ dur: .022, gain, type: "bandpass", f0: freq, q: 5, delay });
+    this.tone({ f0: freq * .55, f1: freq * .3, dur: .025, gain: gain * .4, type: "triangle", delay });
+  },
+  shot() {
+    this.burst({ dur: .16, gain: .34, type: "lowpass", f0: 5400, f1: 380, q: .8 });
+    this.burst({ dur: .07, gain: .22, type: "bandpass", f0: 2200, q: 1.2 });
+    this.burst({ dur: .22, gain: .06, type: "lowpass", f0: 700, f1: 120, q: .7, delay: .02 });
+    this.tone({ f0: 132, f1: 42, dur: .2, gain: .30, type: "sine" });
+    this.tone({ f0: 310, f1: 120, dur: .06, gain: .08, type: "triangle" });
+  },
+  trigger() { this.click(2300, .045); },
+  dry() {
+    this.click(1250, .07);
+    this.click(620, .05, .022);
+  },
+  bolt() {
+    this.burst({ dur: .028, gain: .16, type: "bandpass", f0: 2500, q: 2.2 });
+    this.tone({ f0: 210, f1: 90, dur: .055, gain: .10, type: "triangle" });
+    this.burst({ dur: .05, gain: .09, type: "highpass", f0: 3200, delay: .012 });
+  },
+  seat() {
+    this.click(1500, .06);
+    this.tone({ f0: 120, f1: 55, dur: .06, gain: .12, type: "sine" });
+  },
+  case() { this.burst({ dur: .04, gain: .05, type: "bandpass", f0: 4200, q: 4, delay: .02 }); },
+  charge() {
+    this.burst({ dur: .1, gain: .13, type: "bandpass", f0: 700, f1: 2400, q: 1.4 });
+    this.click(1800, .05, .11);
+    this.bolt();
+  },
+  magOut() {
+    this.click(900, .06);
+    this.tone({ f0: 105, f1: 60, dur: .07, gain: .1, type: "sine", delay: .01 });
+  },
+  magIn() {
+    this.click(1900, .07);
+    this.click(1150, .06, .04);
+    this.tone({ f0: 115, f1: 52, dur: .085, gain: .13, type: "sine", delay: .025 });
+  },
+  cover() { this.click(2700, .05); this.click(1900, .035, .018); },
+  selector() { this.click(2600, .055); },
+  sight() { this.click(2100, .045); },
+  help() {
+    if (!this.ctx || !sim.sound) return;
+    this.tone({ f0: 500, f1: 300, dur: .07, gain: .03, type: "sine" });
+  },
+};
+
+/* --------------------------------- effects ------------------------------- */
+const flashFx = { active: false, age: 0, life: .085, pos: [.436, 0.004, 0], rot: 0, size: .11 };
+const smokePool = Array.from({ length: 18 }, () => ({ active: false, age: 0, life: 1.2, pos: [0,0,0], vel: [0,0,0], size: .04, grow: .1, rot: 0, spin: 0, alpha: .2 }));
+const brassPool = Array.from({ length: 12 }, () => ({ active: false, age: 0, life: 1.2, pos: [0,0,0], vel: [0,0,0], rot: [0,0,0], spin: [0,0,0], scale: 1 }));
+
+function spawnSmoke(pos, forward, up, count = 2) {
+  for (let i = 0; i < count; i++) {
+    const s = smokePool.find((p) => !p.active);
+    if (!s) return;
+    s.active = true;
+    s.age = 0;
+    s.life = .8 + Math.random() * .7;
+    s.pos = [pos[0] + forward[0] * .03, pos[1] + forward[1] * .03 + Math.random() * .01, pos[2] + forward[2] * .03];
+    s.vel = [
+      forward[0] * (.25 + Math.random() * .2) + (Math.random() - .5) * .06,
+      .08 + Math.random() * .12,
+      forward[2] * (.25 + Math.random() * .2) + (Math.random() - .5) * .06,
+    ];
+    s.size = .015 + Math.random() * .02;
+    s.grow = .08 + Math.random() * .07;
+    s.rot = Math.random() * TAU;
+    s.spin = (Math.random() - .5) * .9;
+    s.alpha = .16 + Math.random() * .08;
+  }
+}
+
+function updateEffects(dt) {
+  if (flashFx.active) {
+    flashFx.age += dt;
+    if (flashFx.age >= flashFx.life) flashFx.active = false;
+  }
+  for (const s of smokePool) {
+    if (!s.active) continue;
+    s.age += dt;
+    if (s.age >= s.life) { s.active = false; continue; }
+    s.pos[0] += s.vel[0] * dt;
+    s.pos[1] += s.vel[1] * dt;
+    s.pos[2] += s.vel[2] * dt;
+    s.vel[0] *= .985;
+    s.vel[2] *= .985;
+    s.vel[1] += .015 * dt;
+    s.size += s.grow * dt;
+    s.rot += s.spin * dt;
+  }
+  for (const b of brassPool) {
+    if (!b.active) continue;
+    b.age += dt;
+    if (b.age >= b.life) { b.active = false; continue; }
+    b.vel[1] -= 9.8 * dt;
+    b.pos[0] += b.vel[0] * dt;
+    b.pos[1] += b.vel[1] * dt;
+    b.pos[2] += b.vel[2] * dt;
+    b.rot[0] += b.spin[0] * dt;
+    b.rot[1] += b.spin[1] * dt;
+    b.rot[2] += b.spin[2] * dt;
+  }
+}
+
+/* ------------------------------ part transforms -------------------------- */
+function explodeProgress(part, t) {
+  if (t <= 0) return 0;
+  const d = part.delay;
+  if (t <= d) return 0;
+  const u = clamp((t - d) / Math.max(.001, 1 - d), 0, 1);
+  return 1 - Math.pow(1 - u, 3);
+}
+
+function partMatrix(part) {
+  const p = part.pose(sim) || {};
+  const e = explodeProgress(part, sim.explode);
+  let m = M4.trans(part.offset[0] * e, part.offset[1] * e, part.offset[2] * e);
+  if (part.pivot) {
+    const [px, py, pz] = part.pivot;
+    m = M4.mul(m, M4.trans(px, py, pz));
+    if (p.rz) m = M4.mul(m, M4.rotZ(p.rz));
+    if (p.ry) m = M4.mul(m, M4.rotY(p.ry));
+    if (p.rx) m = M4.mul(m, M4.rotX(p.rx));
+    m = M4.mul(m, M4.trans(-px, -py, -pz));
+  }
+  const tx = p.tx || 0, ty = p.ty || 0, tz = p.tz || 0;
+  if (tx || ty || tz) m = M4.mul(m, M4.trans(tx, ty, tz));
+  return m;
+}
+
+function recoilMatrix() {
+  const r = sim.recoil;
+  if (r < .0005) return M4.ident();
+  return M4.mul(
+    M4.trans(-.013 * r, .002 * r, 0),
+    M4.trans(-.14, -.06, 0),
+    M4.rotZ(.023 * r),
+    M4.trans(.14, .06, 0)
+  );
+}
+
+function aabbCorners(a) {
+  const c = [];
+  for (const x of [a.min[0], a.max[0]]) for (const y of [a.min[1], a.max[1]]) for (const z of [a.min[2], a.max[2]]) c.push([x, y, z]);
+  return c;
+}
+function worldAABB(aabb, m) {
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (const p of aabbCorners(aabb)) {
+    const q = M4.point(m, p);
+    for (let k = 0; k < 3; k++) {
+      if (q[k] < mn[k]) mn[k] = q[k];
+      if (q[k] > mx[k]) mx[k] = q[k];
+    }
+  }
+  return { min: mn, max: mx };
+}
+
+let rootMatrix = M4.ident();
+function updatePartMatrices() {
+  rootMatrix = recoilMatrix();
+  for (const part of PARTS) {
+    part.matrix = partMatrix(part);
+    part.world = M4.mul(rootMatrix, part.matrix);
+    part.worldAABB = worldAABB(part.aabb, part.world);
+    part.camAABB = worldAABB(part.aabb, part.matrix);
+  }
+}
+
+function partCenterWorld(part) {
+  const c = [
+    (part.aabb.min[0] + part.aabb.max[0]) / 2,
+    (part.aabb.min[1] + part.aabb.max[1]) / 2,
+    (part.aabb.min[2] + part.aabb.max[2]) / 2,
+  ];
+  return M4.point(part.world, c);
+}
+
+/* ================================== WebGL ================================= */
+let gl = null;
+let canvas = null;
+let programs = null;
+let buffers = null;
+let textures = null;
+let glReady = false;
+const dummyTexData = new Uint8Array([255, 255, 255, 255]);
+
+const VS_SCENE = `
+attribute vec3 aPos;
+attribute vec3 aNormal;
+attribute vec2 aUv;
+uniform mat4 uProj;
+uniform mat4 uView;
+uniform mat4 uModel;
+uniform mat3 uNormalMat;
+varying vec3 vWorld;
+varying vec3 vNormal;
+varying vec2 vUv;
+void main() {
+  vec4 wp = uModel * vec4(aPos, 1.0);
+  vWorld = wp.xyz;
+  vNormal = uNormalMat * aNormal;
+  vUv = aUv;
+  gl_Position = uProj * uView * wp;
+}`;
+
+const FS_SCENE = `
+precision highp float;
+varying vec3 vWorld;
+varying vec3 vNormal;
+varying vec2 vUv;
+uniform vec3 uBase;
+uniform vec3 uCam;
+uniform vec3 uKeyDir;
+uniform vec3 uFillDir;
+uniform vec3 uRimDir;
+uniform vec3 uKeyColor;
+uniform vec3 uFillColor;
+uniform vec3 uRimColor;
+uniform vec3 uAccent;
+uniform vec3 uFlashPos;
+uniform float uMetal;
+uniform float uRough;
+uniform float uHighlight;
+uniform float uUseMap;
+uniform float uFlashPow;
+uniform float uExposure;
+uniform float uTime;
+uniform float uDebug;
+uniform vec3 uDebugTint;
+uniform sampler2D uMap;
+
+const float PI = 3.14159265359;
+
+vec3 fresnel(vec3 f0, float ct) {
+  return f0 + (1.0 - f0) * pow(clamp(1.0 - ct, 0.0, 1.0), 5.0);
+}
+float ggx(float NoH, float a) {
+  float a2 = a * a;
+  float d = NoH * NoH * (a2 - 1.0) + 1.0;
+  return a2 / (PI * d * d + 0.000001);
+}
+float smith(float NoV, float NoL, float a) {
+  float k = a * 0.5;
+  float gv = NoV / (NoV * (1.0 - k) + k + 0.000001);
+  float gl = NoL / (NoL * (1.0 - k) + k + 0.000001);
+  return gv * gl;
+}
+vec3 lightBRDF(vec3 N, vec3 V, vec3 L, vec3 rad, vec3 base, vec3 f0, float rough, float metal) {
+  float NoL = max(dot(N, L), 0.0);
+  if (NoL <= 0.0) return vec3(0.0);
+  vec3 H = normalize(V + L);
+  float NoH = max(dot(N, H), 0.0);
+  float VoH = max(dot(V, H), 0.0);
+  float NoV = max(dot(N, V), 0.001);
+  float a = max(rough * rough, 0.002);
+  float D = ggx(NoH, a);
+  float G = smith(NoV, NoL, a);
+  vec3 F = fresnel(f0, VoH);
+  vec3 spec = D * G * F / (4.0 * NoV * NoL + 0.002);
+  vec3 kd = (vec3(1.0) - F) * (1.0 - metal);
+  vec3 diff = kd * base / PI;
+  return (diff + spec) * rad * NoL;
+}
+
+void main() {
+  if (uDebug > 0.5) {
+    if (uDebug > 1.5) {
+      gl_FragColor = vec4(uDebugTint, 1.0);
+      return;
+    }
+    vec3 nd = normalize(vNormal);
+    float sh = 0.22 + 0.78 * abs(dot(nd, normalize(vec3(0.35, 0.6, 0.72))));
+    gl_FragColor = vec4(vec3(sh * 0.82), 1.0);
+    return;
+  }
+  vec3 base = uBase;
+  float metal = uMetal;
+  float rough = uRough;
+  if (uUseMap > 0.5) {
+    vec4 tx = texture2D(uMap, vUv);
+    if (tx.a < 0.42) discard;
+    base *= pow(tx.rgb, vec3(2.2));
+    rough = max(rough, 0.5);
+    metal = min(metal, 0.25);
+  }
+  vec3 N = normalize(vNormal);
+  vec3 V = normalize(uCam - vWorld);
+  if (dot(N, N) < 0.5) N = vec3(0.0, 1.0, 0.0);
+  vec3 f0 = mix(vec3(0.045), base, metal);
+
+  vec3 col = vec3(0.0);
+  col += lightBRDF(N, V, normalize(uKeyDir), uKeyColor * 3.4, base, f0, rough, metal);
+  col += lightBRDF(N, V, normalize(uFillDir), uFillColor * 1.05, base, f0, rough, metal);
+  col += lightBRDF(N, V, normalize(uRimDir), uRimColor * 2.6, base, f0, rough, metal);
+
+  // muzzle flash as a temporary warm point light
+  if (uFlashPow > 0.001) {
+    vec3 Lf = uFlashPos - vWorld;
+    float dist = length(Lf);
+    Lf = Lf / max(dist, 0.0001);
+    float att = uFlashPow / (1.0 + dist * dist * 120.0);
+    col += lightBRDF(N, V, Lf, vec3(1.0, 0.55, 0.20) * att * 3.2, base, f0, rough, metal);
+  }
+
+  // procedural studio environment
+  vec3 R = reflect(-V, N);
+  float upness = clamp(R.y * 0.5 + 0.5, 0.0, 1.0);
+  vec3 env = mix(vec3(0.011, 0.013, 0.016), vec3(0.075, 0.09, 0.105), upness);
+  float soft = pow(max(dot(R, normalize(vec3(-0.45, 0.8, 0.5))), 0.0), 60.0) * 1.5
+             + pow(max(dot(R, normalize(vec3(0.72, 0.22, 0.62))), 0.0), 24.0) * 0.35
+             + pow(max(dot(R, normalize(vec3(0.15, 0.65, -0.85))), 0.0), 38.0) * 0.6;
+  env += vec3(soft) * vec3(0.72, 0.79, 0.9);
+  vec3 Fenv = fresnel(f0, max(dot(N, V), 0.0));
+  col += env * (Fenv + (1.0 - rough) * 0.10) * (0.55 + metal * 0.75);
+  col += base * mix(vec3(0.035, 0.040, 0.046), vec3(0.075, 0.085, 0.098), upness) * (1.0 - metal * 0.7);
+
+  float rim = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+  col += vec3(0.10, 0.145, 0.185) * rim * 0.55;
+  float pulse = 0.72 + 0.28 * sin(uTime * 3.2);
+  col += uAccent * uHighlight * (0.05 + rim * 1.9) * pulse;
+  if (uHighlight > 0.001) col += uAccent * uHighlight * 0.012;
+
+  col *= uExposure;
+  col = (col * (2.51 * col + 0.03)) / (col * (2.43 * col + 0.59) + 0.14);
+  col = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2));
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+const VS_BG = `
+attribute vec2 aPos;
+varying vec2 vUv;
+void main() {
+  vUv = aPos * 0.5 + 0.5;
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}`;
+
+const FS_BG = `
+precision highp float;
+varying vec2 vUv;
+uniform vec2 uRes;
+uniform vec2 uCenter;
+uniform float uTime;
+uniform float uPoster;
+void main() {
+  vec2 uv = vUv;
+  float aspect = uRes.x / max(uRes.y, 1.0);
+  vec2 p = (uv - 0.5) * vec2(aspect, 1.0);
+  vec3 bot = vec3(0.0065, 0.0085, 0.0105);
+  vec3 mid = vec3(0.024, 0.031, 0.039);
+  vec3 top = vec3(0.012, 0.016, 0.020);
+  vec3 col = mix(bot, mid, smoothstep(0.0, 0.52, uv.y));
+  col = mix(col, top, smoothstep(0.46, 1.0, uv.y));
+  vec2 c = (uCenter - 0.5) * vec2(aspect, 1.0);
+  float d = length(p - c);
+  col += vec3(0.055, 0.072, 0.090) * exp(-d * d * 3.1);
+  col += vec3(0.13, 0.095, 0.050) * exp(-d * d * 22.0) * 0.22;
+  float sheen = exp(-pow((p.x + p.y * 0.35 + 0.34) * 2.0, 2.0));
+  col += vec3(0.018, 0.023, 0.028) * sheen;
+  vec2 q = uv - 0.5;
+  col *= 1.0 - dot(q, q) * (0.42 + uPoster * 0.2);
+  float n = fract(sin(dot(gl_FragCoord.xy + uTime * 0.2, vec2(12.9898, 78.233))) * 43758.5453);
+  col += (n - 0.5) / 255.0;
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+const VS_SPRITE = `
+attribute vec2 aPos;
+attribute vec2 aUv;
+uniform mat4 uProj;
+uniform mat4 uView;
+uniform vec3 uCenter;
+uniform vec3 uBasis0;
+uniform vec3 uBasis1;
+varying vec2 vUv;
+void main() {
+  vec3 wp = uCenter + uBasis0 * aPos.x + uBasis1 * aPos.y;
+  vUv = aUv;
+  gl_Position = uProj * uView * vec4(wp, 1.0);
+}`;
+
+const FS_SPRITE = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uTex;
+uniform vec3 uColor;
+uniform float uAlpha;
+void main() {
+  vec4 c = texture2D(uTex, vUv);
+  gl_FragColor = vec4(uColor * c.rgb, c.a * uAlpha);
+}`;
+
+function compileShader(type, src) {
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(sh);
+    gl.deleteShader(sh);
+    throw new Error("shader: " + log);
+  }
+  return sh;
+}
+function makeProgram(vs, fs) {
+  const p = gl.createProgram();
+  const v = compileShader(gl.VERTEX_SHADER, vs);
+  const f = compileShader(gl.FRAGMENT_SHADER, fs);
+  gl.attachShader(p, v);
+  gl.attachShader(p, f);
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    throw new Error("link: " + gl.getProgramInfoLog(p));
+  }
+  gl.deleteShader(v);
+  gl.deleteShader(f);
+  return p;
+}
+function getLocs(p, names) {
+  const o = {};
+  for (const n of names) o[n] = gl.getUniformLocation(p, n);
+  return o;
+}
+
+function initGL() {
+  canvas = $("gl");
+  gl = canvas.getContext("webgl", {
+    alpha: false, antialias: true, depth: true, stencil: false,
+    preserveDrawingBuffer: false, powerPreference: "high-performance",
+  }) || canvas.getContext("experimental-webgl");
+  if (!gl) throw new Error("WebGL unavailable");
+
+  const scene = makeProgram(VS_SCENE, FS_SCENE);
+  const bg = makeProgram(VS_BG, FS_BG);
+  const sprite = makeProgram(VS_SPRITE, FS_SPRITE);
+  const attr = {
+    scenePos: gl.getAttribLocation(scene, "aPos"),
+    sceneNrm: gl.getAttribLocation(scene, "aNormal"),
+    sceneUv: gl.getAttribLocation(scene, "aUv"),
+    bgPos: gl.getAttribLocation(bg, "aPos"),
+    spritePos: gl.getAttribLocation(sprite, "aPos"),
+    spriteUv: gl.getAttribLocation(sprite, "aUv"),
+  };
+  const sU = getLocs(scene, [
+    "uProj", "uView", "uModel", "uNormalMat", "uCam", "uBase", "uMetal", "uRough",
+    "uHighlight", "uUseMap", "uAccent", "uMap", "uKeyDir", "uFillDir", "uRimDir",
+    "uKeyColor", "uFillColor", "uRimColor", "uFlashPos", "uFlashPow", "uExposure", "uTime", "uDebug", "uDebugTint",
+  ]);
+  const bU = getLocs(bg, ["uRes", "uCenter", "uTime", "uPoster"]);
+  const pU = getLocs(sprite, ["uProj", "uView", "uCenter", "uBasis0", "uBasis1", "uTex", "uColor", "uAlpha"]);
+  programs = { scene, bg, sprite, attr, sU, bU, pU };
+
+  buffers = {
+    full: makeFullscreenQuad(),
+    sprite: makeSpriteQuad(),
+    parts: new Map(),
+    brass: uploadGeo(buildBrassGeo()),
+  };
+
+  // dummy white texture
+  textures = { dummy: makeTexture(gl, 1, 1, dummyTexData, false), decals: {}, sprites: {} };
+  const white = new Uint8Array([255, 255, 255, 255]);
+  gl.bindTexture(gl.TEXTURE_2D, textures.dummy);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, white);
+
+  textures.decals = {
+    upperMark: makeCanvasTexture(DECAL_DRAW.upperMark, 1024, 256, true),
+    lowerMark: makeCanvasTexture(DECAL_DRAW.lowerMark, 512, 128, true),
+    hgMark: makeCanvasTexture(DECAL_DRAW.hgMark, 256, 128, true),
+    selMark: makeCanvasTexture(DECAL_DRAW.selMark, 256, 256, true),
+  };
+  textures.sprites = {
+    flash: makeCanvasTexture(drawFlashTexture, 256, 256, false),
+    smoke: makeCanvasTexture(drawSmokeTexture, 128, 128, false),
+  };
+
+  // upload all part geometries
+  for (const part of PARTS) {
+    const list = [];
+    for (const b of part.batches) {
+      list.push(uploadGeo(b.geo));
+    }
+    buffers.parts.set(part.id, list);
+  }
+
+  gl.clearColor(0, 0, 0, 1);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
+  gl.disable(gl.CULL_FACE);
+  gl.disable(gl.BLEND);
+  glReady = true;
+}
+
+function makeFullscreenQuad() {
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  return { buf, count: 4 };
+}
+function makeSpriteQuad() {
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    -1,-1, 0,0,  1,-1, 1,0,  -1,1, 0,1,  1,1, 1,1,
+  ]), gl.STATIC_DRAW);
+  return { buf, count: 4 };
+}
+function uploadGeo(geo) {
+  const n = geo.pos.length / 3;
+  const data = new Float32Array(n * 8);
+  for (let i = 0; i < n; i++) {
+    data[i*8] = geo.pos[i*3];
+    data[i*8+1] = geo.pos[i*3+1];
+    data[i*8+2] = geo.pos[i*3+2];
+    data[i*8+3] = geo.nrm[i*3];
+    data[i*8+4] = geo.nrm[i*3+1];
+    data[i*8+5] = geo.nrm[i*3+2];
+    data[i*8+6] = geo.uv[i*2];
+    data[i*8+7] = geo.uv[i*2+1];
+  }
+  const vbo = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  let idx;
+  if (n > 65535) {
+    const ext = gl.getExtension("OES_element_index_uint");
+    if (!ext) throw new Error("mesh too large for 16-bit indices");
+    idx = new Uint32Array(geo.idx);
+  } else {
+    idx = new Uint16Array(geo.idx);
+  }
+  const ibo = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  return { vbo, ibo, count: geo.idx.length, verts: n, tri: geo.idx.length / 3 };
+}
+
+function buildBrassGeo() {
+  const g = new Geo();
+  addCylinder(g, [-0.019, 0, 0], [0.019, 0, 0], 0.0042, 14, true);
+  addCylinder(g, [-0.0205, 0, 0], [-0.019, 0, 0], 0.0050, 14, true);
+  addTube(g, [0.0185, 0, 0], [0.0195, 0, 0], 0.0045, 0.0036, 14, true);
+  return g;
+}
+
+function makeTexture(g, w, h, data, mip) {
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mip ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  if (mip) gl.generateMipmap(gl.TEXTURE_2D);
+  return t;
+}
+function makeCanvasTexture(drawFn, w, h, mip) {
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, w, h);
+  drawFn(ctx, w, h);
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mip ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  if (mip) gl.generateMipmap(gl.TEXTURE_2D);
+  return t;
+}
+
+const DECAL_DRAW = {
+  upperMark(ctx, w, h) {
+    ctx.fillStyle = "rgba(232,232,226,.92)";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.font = "600 88px Inter, 'Segoe UI', Arial, sans-serif";
+    ctx.fillText("HK 416 A5", 46, 74);
+    ctx.font = "500 31px ui-monospace, 'Cascadia Mono', Consolas, monospace";
+    ctx.fillText("CAL. 5,56 × 45 mm NATO", 48, 152);
+    ctx.fillStyle = "rgba(210,210,204,.55)";
+    ctx.font = "500 19px ui-monospace, 'Cascadia Mono', Consolas, monospace";
+    ctx.fillText("SER. 416-A5-0142", 48, 202);
+    ctx.strokeStyle = "rgba(220,220,214,.25)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(48, 176);
+    ctx.lineTo(420, 176);
+    ctx.stroke();
+  },
+  lowerMark(ctx, w, h) {
+    ctx.fillStyle = "rgba(230,230,224,.94)";
+    ctx.textBaseline = "middle";
+    ctx.font = "600 46px Inter, 'Segoe UI', Arial, sans-serif";
+    ctx.fillText("HK 416 A5", 28, 48);
+    ctx.fillStyle = "rgba(212,212,206,.65)";
+    ctx.font = "500 19px ui-monospace, Consolas, monospace";
+    ctx.fillText("5,56 × 45 NATO · 0142", 29, 92);
+  },
+  hgMark(ctx, w, h) {
+    ctx.fillStyle = "rgba(228,228,222,.82)";
+    ctx.textBaseline = "middle";
+    ctx.font = "600 40px ui-monospace, Consolas, monospace";
+    ctx.fillText("M-LOK", 18, 48);
+    ctx.fillStyle = "rgba(210,210,204,.48)";
+    ctx.font = "500 16px ui-monospace, Consolas, monospace";
+    ctx.fillText("HK 416 A5", 19, 86);
+  },
+  selMark(ctx, w, h) {
+    ctx.translate(w/2, h/2);
+    ctx.fillStyle = "rgba(230,230,224,.85)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "600 42px ui-monospace, Consolas, monospace";
+    ctx.fillText("S", 0, -84);
+    ctx.fillText("1", 82, 18);
+    ctx.fillText("A", 0, 88);
+    ctx.strokeStyle = "rgba(230,230,224,.35)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 74, Math.PI * 0.16, Math.PI * 0.84, true);
+    ctx.stroke();
+  },
+};
+
+function drawFlashTexture(ctx, w, h) {
+  const cx = w/2, cy = h/2;
+  ctx.clearRect(0, 0, w, h);
+  ctx.globalCompositeOperation = "lighter";
+  const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, w/2);
+  g.addColorStop(0, "rgba(255,255,245,1)");
+  g.addColorStop(.12, "rgba(255,225,150,.95)");
+  g.addColorStop(.32, "rgba(255,150,55,.55)");
+  g.addColorStop(.62, "rgba(255,90,20,.16)");
+  g.addColorStop(1, "rgba(255,60,0,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  // star spikes
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + .2;
+    const len = w * (i % 2 ? .32 : .46);
+    const grad = ctx.createLinearGradient(cx, cy, cx + Math.cos(a)*len, cy + Math.sin(a)*len);
+    grad.addColorStop(0, "rgba(255,240,200,.55)");
+    grad.addColorStop(.5, "rgba(255,170,80,.15)");
+    grad.addColorStop(1, "rgba(255,100,20,0)");
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = i % 2 ? 3 : 6;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a)*w*.05, cy + Math.sin(a)*w*.05);
+    ctx.lineTo(cx + Math.cos(a)*len, cy + Math.sin(a)*len);
+    ctx.stroke();
+  }
+}
+function drawSmokeTexture(ctx, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  for (let i = 0; i < 16; i++) {
+    const x = w * (.18 + Math.random() * .64);
+    const y = h * (.18 + Math.random() * .64);
+    const r = w * (.08 + Math.random() * .22);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(205,210,214,${.04 + Math.random() * .05})`);
+    g.addColorStop(.55, `rgba(180,188,194,${.03 + Math.random() * .04})`);
+    g.addColorStop(1, "rgba(150,158,166,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, TAU);
+    ctx.fill();
+  }
+}
+
+/* ================================== camera ================================ */
+const cam = {
+  yaw: .62, pitch: .19, zoom: 1,
+  target: [0.01, -.06, 0], smoothTarget: [0.01, -.06, 0],
+  dist: 1.25, smoothDist: 1.25, pan: [0, 0],
+  fov: 30 * DEG, yawTween: null, safe: { ...safe },
+};
+const views = {
+  hero: { yaw: .62, pitch: .19 },
+  right: { yaw: .01, pitch: .055 },
+  left: { yaw: Math.PI - .01, pitch: .055 },
+  top: { yaw: .001, pitch: 1.36 },
+};
+const viewOrder = ["hero", "right", "left", "top"];
+const viewNames = { hero: "立体", right: "右侧", left: "左侧", top: "俯视" };
+
+function cameraBasis() {
+  const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+  const dir = [Math.sin(cam.yaw) * cp, sp, Math.cos(cam.yaw) * cp];
+  const right = V3.norm(V3.cross([0, 1, 0], dir));
+  const up = V3.cross(dir, right);
+  return { dir, right, up };
+}
+
+function computeSceneBounds() {
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  let any = false;
+  for (const part of PARTS) {
+    if (!part.visible() || !part.camAABB) continue;
+    any = true;
+    for (let k = 0; k < 3; k++) {
+      if (part.camAABB.min[k] < mn[k]) mn[k] = part.camAABB.min[k];
+      if (part.camAABB.max[k] > mx[k]) mx[k] = part.camAABB.max[k];
+    }
+  }
+  if (!any) { mn[0] = -.5; mn[1] = -.2; mn[2] = -.1; mx[0] = .5; mx[1] = .1; mx[2] = .1; }
+  return { min: mn, max: mx, center: [(mn[0]+mx[0])/2, (mn[1]+mx[1])/2, (mn[2]+mx[2])/2] };
+}
+
+function desiredCamera() {
+  const box = computeSceneBounds();
+  const basis = cameraBasis();
+  const tanV = Math.tan(cam.fov / 2);
+  const aspect = Math.max(.2, viewport.W / viewport.H);
+  const tanH = tanV * aspect;
+  const mH = Math.max(.15, (safe.x1 - safe.x0) / viewport.W) * .93;
+  const mV = Math.max(.15, (safe.y1 - safe.y0) / viewport.H) * .93;
+
+  const fitDist = (target) => {
+    let d = .40;
+    for (const p of aabbCorners(box)) {
+      const rx = p[0] - target[0], ry = p[1] - target[1], rz = p[2] - target[2];
+      const x = rx * basis.right[0] + ry * basis.right[1] + rz * basis.right[2];
+      const y = rx * basis.up[0] + ry * basis.up[1] + rz * basis.up[2];
+      const z = rx * basis.dir[0] + ry * basis.dir[1] + rz * basis.dir[2];
+      d = Math.max(d,
+        z + Math.abs(x) / (tanH * mH),
+        z + Math.abs(y) / (tanV * mV));
+    }
+    return d + .03;
+  };
+
+  const target = box.center.slice();
+  return {
+    target,
+    dist: clamp(fitDist(target) * cam.zoom, .35, 5.0),
+  };
+}
+
+function updateCamera(dt) {
+  if (cam.yawTween) {
+    const tw = cam.yawTween;
+    tw.t = Math.min(1, tw.t + dt / tw.dur);
+    const u = easeFns.inout(tw.t);
+    cam.yaw = tw.yaw0 + tw.dy * u;
+    cam.pitch = tw.pitch0 + (tw.pitch1 - tw.pitch0) * u;
+    if (tw.t >= 1) cam.yawTween = null;
+  }
+  if (sim.autoOrbit && !drag.active && !cam.yawTween) {
+    cam.yaw += dt * .115;
+  }
+  cam.pitch = clamp(cam.pitch, -.32, 1.46);
+  const want = desiredCamera();
+  const k = 1 - Math.exp(-dt * 9.0);
+  cam.smoothTarget[0] += (want.target[0] - cam.smoothTarget[0]) * k;
+  cam.smoothTarget[1] += (want.target[1] - cam.smoothTarget[1]) * k;
+  cam.smoothTarget[2] += (want.target[2] - cam.smoothTarget[2]) * k;
+  cam.smoothDist += (want.dist - cam.smoothDist) * k;
+  cam.target = cam.smoothTarget.slice();
+  cam.dist = cam.smoothDist;
+}
+
+function cameraMatrices() {
+  const basis = cameraBasis();
+  const eye = [
+    cam.target[0] + basis.dir[0] * cam.dist,
+    cam.target[1] + basis.dir[1] * cam.dist,
+    cam.target[2] + basis.dir[2] * cam.dist,
+  ];
+  const view = M4.lookAt(eye, cam.target, [0, 1, 0]);
+  const aspect = Math.max(.2, viewport.W / viewport.H);
+  const proj0 = M4.persp(cam.fov, aspect, .01, 20);
+  const sx = (safe.cx / viewport.W) * 2 - 1;
+  const sy = 1 - (safe.cy / viewport.H) * 2;
+  const safeShift = new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, sx, sy, 0,1]);
+  const baseProj = M4.mul(safeShift, proj0);
+  const vp0 = M4.mul(baseProj, view);
+
+  // Perspective makes a long object's screen bbox asymmetric around the
+  // projected 3D centre. Find the projected bounds of the parts and add a
+  // clip-space offset so the visible silhouette sits exactly in the safe area.
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const part of PARTS) {
+    if (!part.visible() || !part.camAABB) continue;
+    for (const p of aabbCorners(part.camAABB)) {
+      const nd = projectPoint(vp0, p);
+      if (!nd) continue;
+      const px = (nd.x * .5 + .5) * viewport.W;
+      const py = (.5 - nd.y * .5) * viewport.H;
+      if (px < minX) minX = px; if (px > maxX) maxX = px;
+      if (py < minY) minY = py; if (py > maxY) maxY = py;
+    }
+  }
+  let extraX = 0, extraY = 0;
+  if (Number.isFinite(minX)) {
+    extraX = (safe.cx - (minX + maxX) / 2) * 2 / viewport.W;
+    extraY = ((minY + maxY) / 2 - safe.cy) * 2 / viewport.H;
+  }
+  const tanV = Math.tan(cam.fov / 2);
+  const tanH = tanV * aspect;
+  extraX += -cam.pan[0] / (Math.max(.1, cam.dist) * tanH);
+  extraY += -cam.pan[1] / (Math.max(.1, cam.dist) * tanV);
+  const compose = new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, extraX, extraY, 0,1]);
+  const proj = M4.mul(compose, baseProj);
+  return {
+    eye, view, proj,
+    viewProj: M4.mul(proj, view),
+    basis,
+    shift: [sx + extraX, sy + extraY],
+    compose: [extraX, extraY],
+  };
+}
+
+/* ================================= rendering ============================== */
+let frameStats = { fps: 60, dt: 1 / 60, drawCalls: 0, tris: 0 };
+let lastProjection = null;
+let debugMode = 0;
+function debugColor(part) {
+  const h = (part.num * 0.61803398875) % 1;
+  const s = .82, v = 1;
+  const i = Math.floor(h * 6), f = h * 6 - i;
+  const p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+  const rgb = [[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]][i % 6];
+  return [rgb[0] * .82 + .05, rgb[1] * .82 + .05, rgb[2] * .82 + .05];
+}
+
+function setNormalMat(loc, m) {
+  gl.uniformMatrix3fv(loc, false, new Float32Array([m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10]]));
+}
+
+function bindGeo(geoBuf, attr) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, geoBuf.vbo);
+  gl.enableVertexAttribArray(attr.scenePos);
+  gl.vertexAttribPointer(attr.scenePos, 3, gl.FLOAT, false, 32, 0);
+  gl.enableVertexAttribArray(attr.sceneNrm);
+  gl.vertexAttribPointer(attr.sceneNrm, 3, gl.FLOAT, false, 32, 12);
+  gl.enableVertexAttribArray(attr.sceneUv);
+  gl.vertexAttribPointer(attr.sceneUv, 2, gl.FLOAT, false, 32, 24);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geoBuf.ibo);
+}
+
+function drawParts(cm, time) {
+  const { attr, sU } = programs;
+  const scene = programs.scene;
+  gl.useProgram(scene);
+  gl.uniformMatrix4fv(sU.uProj, false, cm.proj);
+  gl.uniformMatrix4fv(sU.uView, false, cm.view);
+  gl.uniform3fv(sU.uCam, cm.eye);
+  const key = V3.norm([-.42, .78, .52]);
+  const fill = V3.norm([.74, .18, .58]);
+  const rim = V3.norm([cm.basis.right[0] * -.25 + cm.basis.dir[0] * .85, .62, cm.basis.right[2] * -.25 + cm.basis.dir[2] * .85]);
+  gl.uniform3fv(sU.uKeyDir, key);
+  gl.uniform3fv(sU.uFillDir, fill);
+  gl.uniform3fv(sU.uRimDir, rim);
+  gl.uniform3fv(sU.uKeyColor, [1.0, .93, .84]);
+  gl.uniform3fv(sU.uFillColor, [.52, .63, .76]);
+  gl.uniform3fv(sU.uRimColor, [.58, .72, .88]);
+  gl.uniform3fv(sU.uAccent, [1.0, .63, .28]);
+  gl.uniform1f(sU.uExposure, 2.15);
+  gl.uniform1f(sU.uTime, time);
+  gl.uniform1f(sU.uDebug, debugMode);
+  let muzzleWorld = null;
+  const muzzle = PARTS_BY_ID.muzzle;
+  if (muzzle) muzzleWorld = M4.point(muzzle.world, [.436, .004, 0]);
+  gl.uniform3fv(sU.uFlashPos, muzzleWorld || [0, 0, 0]);
+  gl.uniform1f(sU.uFlashPow, Math.max(0, 1 - sim.flashAge / .09) * 2.0);
+  gl.uniform1i(sU.uMap, 0);
+  gl.activeTexture(gl.TEXTURE0);
+  let drawCalls = 0, tris = 0;
+
+  for (const part of PARTS) {
+    if (!part.visible()) continue;
+    const bufs = buffers.parts.get(part.id);
+    const hi = part.id === sim.selected ? 1 : part.id === sim.hovered ? .55 : 0;
+    gl.uniform1f(sU.uHighlight, hi);
+    if (debugMode === 2) gl.uniform3fv(sU.uDebugTint, debugColor(part));
+    for (let bi = 0; bi < part.batches.length; bi++) {
+      const batch = part.batches[bi];
+      const mat = MATS[batch.mat];
+      let model = part.world;
+      if (batch.xf) model = M4.mul(part.world, batch.xf());
+      gl.uniformMatrix4fv(sU.uModel, false, model);
+      setNormalMat(sU.uNormalMat, model);
+      gl.uniform3fv(sU.uBase, mat.col);
+      gl.uniform1f(sU.uMetal, mat.metal);
+      gl.uniform1f(sU.uRough, mat.rough);
+      if (mat.decal) {
+        gl.uniform1f(sU.uUseMap, 1);
+        gl.bindTexture(gl.TEXTURE_2D, textures.decals[mat.decal] || textures.dummy);
+      } else {
+        gl.uniform1f(sU.uUseMap, 0);
+        gl.bindTexture(gl.TEXTURE_2D, textures.dummy);
+      }
+      const buf = bufs[bi];
+      if (!buf || !buf.count) continue;
+      bindGeo(buf, attr);
+      gl.drawElements(gl.TRIANGLES, buf.count, buf.verts > 65535 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, 0);
+      drawCalls++;
+      tris += buf.tri;
+    }
+  }
+
+  // ejected cases
+  const brass = buffers.brass;
+  if (brass) {
+    gl.uniform1f(sU.uHighlight, 0);
+    gl.uniform1f(sU.uUseMap, 0);
+    gl.bindTexture(gl.TEXTURE_2D, textures.dummy);
+    gl.uniform3fv(sU.uBase, MATS.brass.col);
+    gl.uniform1f(sU.uMetal, MATS.brass.metal);
+    gl.uniform1f(sU.uRough, MATS.brass.rough);
+    for (const b of brassPool) {
+      if (!b.active) continue;
+      const ageN = b.age / b.life;
+      const sc = ageN > .86 ? Math.max(0.001, 1 - (ageN - .86) / .14) : 1;
+      const m = M4.mul(
+        M4.trans(b.pos[0], b.pos[1], b.pos[2]),
+        M4.rotY(b.rot[1]), M4.rotX(b.rot[0]), M4.rotZ(b.rot[2]),
+        M4.scale(sc, sc, sc)
+      );
+      gl.uniformMatrix4fv(sU.uModel, false, m);
+      setNormalMat(sU.uNormalMat, m);
+      bindGeo(brass, attr);
+      gl.drawElements(gl.TRIANGLES, brass.count, brass.verts > 65535 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, 0);
+      drawCalls++;
+      tris += brass.tri;
+    }
+  }
+  frameStats.drawCalls = drawCalls;
+  frameStats.tris = tris;
+}
+
+function drawBackground(cm) {
+  const { bg, attr, bU } = programs;
+  gl.useProgram(bg);
+  gl.disable(gl.DEPTH_TEST);
+  gl.depthMask(false);
+  gl.disable(gl.BLEND);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.full.buf);
+  gl.enableVertexAttribArray(attr.bgPos);
+  gl.vertexAttribPointer(attr.bgPos, 2, gl.FLOAT, false, 0, 0);
+  gl.uniform2f(bU.uRes, viewport.W, viewport.H);
+  gl.uniform2f(bU.uCenter, safe.cx / viewport.W, 1 - safe.cy / viewport.H);
+  gl.uniform1f(bU.uTime, sim.time);
+  gl.uniform1f(bU.uPoster, document.body.classList.contains("poster") ? 1 : 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  gl.depthMask(true);
+  gl.enable(gl.DEPTH_TEST);
+}
+
+function drawSprites(cm) {
+  if (!glReady) return;
+  const { sprite, attr, pU } = programs;
+  const smokeList = smokePool.filter((s) => s.active);
+  const showFlash = flashFx.active && flashFx.age < flashFx.life;
+  if (!smokeList.length && !showFlash) return;
+  gl.useProgram(sprite);
+  gl.uniformMatrix4fv(pU.uProj, false, cm.proj);
+  gl.uniformMatrix4fv(pU.uView, false, cm.view);
+  gl.enable(gl.BLEND);
+  gl.depthMask(false);
+  gl.disable(gl.DEPTH_TEST);
+  gl.bindTexture(gl.TEXTURE_2D, textures.sprites.smoke);
+  gl.uniform1i(pU.uTex, 0);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.sprite.buf);
+  gl.enableVertexAttribArray(attr.spritePos);
+  gl.vertexAttribPointer(attr.spritePos, 2, gl.FLOAT, false, 16, 0);
+  gl.enableVertexAttribArray(attr.spriteUv);
+  gl.vertexAttribPointer(attr.spriteUv, 2, gl.FLOAT, false, 16, 8);
+  const R = cm.basis.right, U = cm.basis.up;
+  smokeList.sort((a, b) => {
+    const da = (a.pos[0]-cm.eye[0])**2 + (a.pos[1]-cm.eye[1])**2 + (a.pos[2]-cm.eye[2])**2;
+    const db = (b.pos[0]-cm.eye[0])**2 + (b.pos[1]-cm.eye[1])**2 + (b.pos[2]-cm.eye[2])**2;
+    return db - da;
+  });
+  for (const s of smokeList) {
+    const t = clamp(s.age / s.life, 0, 1);
+    const alpha = s.alpha * (1 - t) * Math.min(1, s.age * 8);
+    const size = s.size;
+    const ca = Math.cos(s.rot), sa = Math.sin(s.rot);
+    const b0 = [ (R[0]*ca + U[0]*sa) * size, (R[1]*ca + U[1]*sa) * size, (R[2]*ca + U[2]*sa) * size ];
+    const b1 = [ (-R[0]*sa + U[0]*ca) * size, (-R[1]*sa + U[1]*ca) * size, (-R[2]*sa + U[2]*ca) * size ];
+    gl.uniform3fv(pU.uCenter, s.pos);
+    gl.uniform3fv(pU.uBasis0, b0);
+    gl.uniform3fv(pU.uBasis1, b1);
+    gl.uniform3f(pU.uColor, .58, .62, .66);
+    gl.uniform1f(pU.uAlpha, alpha);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  if (showFlash) {
+    const t = clamp(flashFx.age / flashFx.life, 0, 1);
+    const alpha = (1 - t) * .95;
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    gl.bindTexture(gl.TEXTURE_2D, textures.sprites.flash);
+    gl.uniform1f(pU.uAlpha, alpha);
+    gl.uniform3f(pU.uColor, 1.0, .78, .42);
+    const layers = [
+      { size: .075 + t * .03, rot: flashFx.rot, alpha: 1.0 },
+      { size: .16 + t * .06, rot: flashFx.rot + .7, alpha: .38 },
+    ];
+    for (const L of layers) {
+      const ca = Math.cos(L.rot), sa = Math.sin(L.rot);
+      const b0 = [ (R[0]*ca + U[0]*sa) * L.size, (R[1]*ca + U[1]*sa) * L.size, (R[2]*ca + U[2]*sa) * L.size ];
+      const b1 = [ (-R[0]*sa + U[0]*ca) * L.size, (-R[1]*sa + U[1]*ca) * L.size, (-R[2]*sa + U[2]*ca) * L.size ];
+      gl.uniform3fv(pU.uCenter, flashFx.pos);
+      gl.uniform3fv(pU.uBasis0, b0);
+      gl.uniform3fv(pU.uBasis1, b1);
+      gl.uniform1f(pU.uAlpha, alpha * L.alpha);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+  }
+  gl.disable(gl.BLEND);
+  gl.depthMask(true);
+  gl.enable(gl.DEPTH_TEST);
+}
+
+function drawFrame() {
+  if (!glReady) return;
+  updatePartMatrices();
+  const cm = cameraMatrices();
+  lastProjection = cm;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.disable(gl.BLEND);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthMask(true);
+  drawBackground(cm);
+  drawParts(cm, sim.time);
+  drawSprites(cm);
+}
+
+/* ============================== state actions ============================= */
+const MODE_LABEL = { safe: "SAFE", semi: "SEMI", auto: "AUTO" };
+const pad2 = (n) => (n < 10 ? "0" + n : "" + n);
+const modeAngle = (m) => (m === "safe" ? 0 : m === "semi" ? Math.PI / 2 : Math.PI);
+
+function canOperate(quiet) {
+  if (sim.explode > 0.04) {
+    if (!quiet) toast("请先收起爆炸图再操作 — 按 X");
+    return false;
+  }
+  return true;
+}
+
+function triggerDown() {
+  Snd.init();
+  if (!canOperate()) return;
+  if (sim.reloading || sim.charging) return;
+  if (sim.triggerHeld) return;
+  sim.triggerHeld = true;
+  updateHud();
+  if (sim.mode === "safe") {
+    Snd.trigger();
+    toast("保险位置 — 快慢机切到单发或连发");
+    return;
+  }
+  if (!sim.chambered) {
+    sim.triggerLocked = true;
+    dryFire();
+    return;
+  }
+  if (sim.mode === "semi" && sim.triggerLocked) return;
+  fireShot();
+}
+
+function triggerUp() {
+  sim.triggerHeld = false;
+  sim.triggerLocked = false;
+  sim.dryLatch = false;
+  updateHud();
+}
+
+function dryFire() {
+  Snd.dry();
+  sim.hammer = 1;
+  tween("hammer", 0, .055, { delay: .02, ease: "out" });
+  sim.triggerLocked = true;
+  sim.dryLatch = true;
+  toast(sim.magIn ? "空仓 — 按 R 换弹" : "无弹匣 — 按 R 换弹", 2000);
+}
+
+function setMode(mode) {
+  if (!["safe", "semi", "auto"].includes(mode)) return;
+  if (!canOperate()) return;
+  if (sim.reloading) { toast("换弹中，请稍候", 1200); return; }
+  sim.triggerHeld = false;
+  sim.triggerLocked = false;
+  sim.dryLatch = false;
+  sim.mode = mode;
+  const target = modeAngle(mode);
+  cancelTween("selectorAngle");
+  tween("selectorAngle", target, .2, { ease: "inout" });
+  Snd.init(); Snd.selector();
+  updateModeUI();
+  updateHud();
+  toast(mode === "safe" ? "保险 · SAFE" : mode === "semi" ? "单发 · SEMI" : "连发 · AUTO", 1200);
+}
+
+function cycleMode() {
+  const order = ["safe", "semi", "auto"];
+  const i = order.indexOf(sim.mode);
+  setMode(order[(i + 1) % order.length]);
+}
+
+function fireShot() {
+  if (!sim.chambered || sim.reloading || sim.charging || sim.cycle || sim.explode > .04) return false;
+  sim.cycle = true;
+  sim.chambered = false;
+  sim.shots++;
+  sim.lastShotAt = sim.time;
+  if (sim.mode === "semi") sim.triggerLocked = true;
+  Snd.shot();
+  sim.recoil = 1;
+  sim.flashAge = 0;
+  sim.flash = 1;
+  sim.hammer = 1;
+  tween("hammer", 0, .05, { delay: .035, ease: "out" });
+  if (sim.coverTarget < .5) {
+    sim.coverTarget = 1;
+    Snd.cover();
+    after(.035, () => updateHud(), "shot");
+  }
+  spawnFlashAndSmoke();
+  tween("bolt", 1, .032, { ease: "out" });
+  after(.034, () => {
+    ejectBrass();
+    Snd.case();
+  }, "shot");
+  after(.036, () => {
+    if (sim.magRounds > 0) {
+      sim.magRounds--;
+      sim.chambered = true;
+      sim.boltLocked = false;
+      tween("bolt", 0, .04, { ease: "inout" });
+    } else {
+      sim.chambered = false;
+      sim.boltLocked = true;
+      toast("空仓挂机 — 按 R 换弹", 2000);
+    }
+    updateHud();
+  }, "shot");
+  after(.084, () => {
+    sim.cycle = false;
+    updateHud();
+  }, "shot");
+  updateHud();
+  return true;
+}
+
+function spawnFlashAndSmoke() {
+  updatePartMatrices();
+  const muzzle = PARTS_BY_ID.muzzle;
+  const p = M4.point(muzzle.world, [.436, .004, 0]);
+  const forward = V3.norm(M4.dir(rootMatrix, [1, 0, 0]));
+  const up = V3.norm(M4.dir(rootMatrix, [0, 1, 0]));
+  flashFx.active = true;
+  flashFx.age = 0;
+  flashFx.life = .085;
+  flashFx.pos = [p[0] + forward[0] * .008, p[1] + forward[1] * .008, p[2] + forward[2] * .008];
+  flashFx.rot = Math.random() * TAU;
+  spawnSmoke(p, forward, up, 2);
+}
+
+function ejectBrass() {
+  updatePartMatrices();
+  const upper = PARTS_BY_ID.upper;
+  const p = M4.point(upper.world, [.035, .008, .032]);
+  const R = V3.norm(M4.dir(rootMatrix, [0, 0, 1]));
+  const U = V3.norm(M4.dir(rootMatrix, [0, 1, 0]));
+  const F = V3.norm(M4.dir(rootMatrix, [1, 0, 0]));
+  const b = brassPool.find((x) => !x.active) || brassPool[0];
+  b.active = true;
+  b.age = 0;
+  b.life = 1.25;
+  b.pos = p.slice();
+  b.vel = [
+    R[0] * (1.05 + Math.random() * .45) + U[0] * (.85 + Math.random() * .45) - F[0] * (.15 + Math.random() * .25),
+    R[1] * (1.05 + Math.random() * .45) + U[1] * (.85 + Math.random() * .45) - F[1] * (.15 + Math.random() * .25),
+    R[2] * (1.05 + Math.random() * .45) + U[2] * (.85 + Math.random() * .45) - F[2] * (.15 + Math.random() * .25),
+  ];
+  b.rot = [Math.random() * TAU, Math.random() * TAU, Math.random() * TAU];
+  b.spin = [(Math.random() - .5) * 22, (Math.random() - .5) * 22, (Math.random() - .5) * 22];
+  b.scale = 1;
+}
+
+function rack() {
+  Snd.init();
+  if (!canOperate() || sim.reloading || sim.charging || sim.cycle) return;
+  sim.triggerHeld = false;
+  sim.triggerLocked = false;
+  sim.charging = true;
+  sim.cycle = true;
+  Snd.charge();
+  cancelTween("charge");
+  cancelTween("bolt");
+  tween("charge", 1, .14, { ease: "out" });
+  tween("bolt", 1, .14, { ease: "out" });
+  after(.15, () => {
+    sim.boltLocked = false;
+    sim.hammer = 0;
+    if (sim.chambered) { sim.chambered = false; ejectBrass(); }
+    if (sim.coverTarget < .5) sim.coverTarget = 1;
+    tween("charge", 0, .05, { ease: "in" });
+    tween("bolt", 0, .055, { ease: "in" });
+    after(.02, () => {
+      if (sim.magRounds > 0) {
+        sim.magRounds--;
+        sim.chambered = true;
+        Snd.bolt();
+        toast("已上膛", 1400);
+      } else {
+        sim.chambered = false;
+        toast(sim.magIn ? "弹匣为空" : "无弹匣", 1800);
+      }
+      updateHud();
+    }, "rack");
+    after(.1, () => {
+      sim.charging = false;
+      sim.cycle = false;
+      updateHud();
+    }, "rack");
+  }, "rack");
+  toast("拉动拉机柄…", 900);
+  updateHud();
+}
+
+function manualChargeStart() {
+  if (!canOperate() || sim.reloading || sim.charging || sim.cycle) return false;
+  sim.triggerHeld = false;
+  sim.triggerLocked = false;
+  sim.charging = true;
+  cancelTween("charge");
+  cancelTween("bolt");
+  drag.boltStart = sim.bolt;
+  return true;
+}
+function manualChargeSet(v, startAmount) {
+  sim.charge = clamp(v, 0, 1);
+  sim.bolt = Math.max(startAmount, sim.charge);
+}
+function manualChargeEnd(complete) {
+  if (!sim.charging) return;
+  if (!complete) {
+    tween("charge", 0, .08, { ease: "out" });
+    tween("bolt", drag.boltStart, .08, { ease: "out" });
+    sim.charging = false;
+    after(.09, () => updateHud(), "manual");
+    return;
+  }
+  Snd.charge();
+  tween("charge", 1, .055, { ease: "out" });
+  tween("bolt", 1, .055, { ease: "out" });
+  after(.07, () => {
+    sim.boltLocked = false;
+    sim.hammer = 0;
+    if (sim.chambered) { sim.chambered = false; ejectBrass(); }
+    if (sim.coverTarget < .5) { sim.coverTarget = 1; Snd.cover(); }
+    tween("charge", 0, .05, { ease: "in" });
+    tween("bolt", 0, .055, { ease: "in" });
+    after(.02, () => {
+      if (sim.magRounds > 0) {
+        sim.magRounds--;
+        sim.chambered = true;
+        Snd.bolt();
+        toast("已上膛", 1400);
+      } else {
+        sim.chambered = false;
+        toast(sim.magIn ? "弹匣为空" : "无弹匣", 1800);
+      }
+      updateHud();
+    }, "manual");
+    after(.1, () => {
+      sim.charging = false;
+      updateHud();
+    }, "manual");
+  }, "manual");
+}
+
+function dropMag(discard = false, opts = {}) {
+  if (!canOperate(!opts.silent)) return false;
+  if (sim.magIn === false) return false;
+  if (sim.reloading || sim.charging) return false;
+  sim.triggerHeld = false;
+  sim.triggerLocked = false;
+  sim.magIn = false;
+  sim.magVisible = true;
+  sim.stowedRounds = sim.magRounds;
+  sim.magRounds = 0;
+  cancelTween("magDrop");
+  tween("magDrop", 1, .4, {
+    ease: "in",
+    done: () => {
+      if (!sim.magIn) sim.magVisible = false;
+      updateHud();
+    },
+  });
+  Snd.magOut();
+  if (!opts.silent) toast(`弹匣已卸下 · ${sim.stowedRounds} 发`, 1600);
+  updateHud();
+  return true;
+}
+
+function insertMag(fresh = true, opts = {}) {
+  if (!canOperate(!opts.silent)) return false;
+  if (sim.magIn) return false;
+  if (sim.reloading || sim.charging) return false;
+  const rounds = fresh ? 30 : sim.stowedRounds;
+  sim.triggerHeld = false;
+  sim.triggerLocked = false;
+  sim.magVisible = true;
+  sim.magDrop = 1;
+  cancelTween("magDrop");
+  Snd.magIn();
+  tween("magDrop", 0, .34, {
+    ease: "out",
+    done: () => {
+      sim.magIn = true;
+      sim.magRounds = rounds;
+      sim.magVisible = true;
+      Snd.seat();
+      updateHud();
+      if (!opts.silent) toast(`弹匣已装填 · ${rounds} 发`, 1600);
+    },
+  });
+  updateHud();
+  return true;
+}
+
+function reload() {
+  Snd.init();
+  if (!canOperate()) return;
+  if (sim.reloading) { toast("换弹中…", 900); return; }
+  if (sim.charging || sim.cycle) return;
+  sim.triggerHeld = false;
+  sim.triggerLocked = false;
+  sim.dryLatch = false;
+  sim.reloading = true;
+  updateHud();
+  toast("换弹…", 1000);
+
+  const insertFresh = () => {
+    sim.magVisible = true;
+    sim.magIn = false;
+    sim.magDrop = 1;
+    cancelTween("magDrop");
+    Snd.magIn();
+    tween("magDrop", 0, .36, {
+      ease: "out",
+      done: () => {
+        sim.magIn = true;
+        sim.magRounds = 30;
+        sim.magVisible = true;
+        Snd.seat();
+        updateHud();
+        after(.14, finishReload, "reload");
+      },
+    });
+  };
+  const finishReload = () => {
+    if (sim.boltLocked || !sim.chambered) {
+      sim.boltLocked = false;
+      if (sim.magRounds > 0) {
+        sim.magRounds--;
+        sim.chambered = true;
+      }
+      Snd.bolt();
+      tween("bolt", 1, .04, { ease: "out", done: () => tween("bolt", 0, .06, { ease: "in" }) });
+      after(.12, () => {
+        sim.reloading = false;
+        updateHud();
+        toast("换弹完成 · 已上膛", 1800);
+      }, "reload");
+    } else {
+      sim.reloading = false;
+      updateHud();
+      toast("换弹完成 · 30 发", 1800);
+    }
+  };
+  if (sim.magIn) {
+    sim.magIn = false;
+    sim.magRounds = 0;
+    sim.magVisible = true;
+    cancelTween("magDrop");
+    tween("magDrop", 1, .38, { ease: "in" });
+    Snd.magOut();
+    updateHud();
+    after(.54, insertFresh, "reload");
+  } else {
+    insertFresh();
+  }
+}
+
+function togglePort() {
+  if (!canOperate()) return;
+  sim.coverTarget = sim.coverTarget > .5 ? 0 : 1;
+  Snd.cover();
+  toast(sim.coverTarget > .5 ? "抛壳口盖已打开" : "抛壳口盖已关闭", 1200);
+  updateHud();
+}
+
+function toggleSights() {
+  if (!canOperate()) return;
+  const on = sim.sightFrontTarget < .5;
+  sim.sightFrontTarget = on ? 1 : 0;
+  sim.sightRearTarget = on ? 1 : 0;
+  Snd.sight();
+  toast(on ? "机械瞄具已立起" : "机械瞄具已折叠", 1200);
+}
+
+function toggleExplosion() {
+  if (sim.explode > .5) {
+    cancelTween("explode");
+    tween("explode", 0, 1.3, { ease: "inout" });
+  } else {
+    cancelTween("explode");
+    tween("explode", 1, 1.6, { ease: "inout" });
+    sim.triggerHeld = false;
+    sim.triggerLocked = false;
+  }
+  updateExplodeUI();
+}
+
+function setExplodeValue(v) {
+  cancelTween("explode");
+  sim.explode = clamp(v, 0, 1);
+  sim.explodeTarget = sim.explode;
+  if (sim.explode > .04) {
+    sim.triggerHeld = false;
+    sim.triggerLocked = false;
+    sim.dryLatch = false;
+  }
+  updateExplodeUI();
+}
+
+function resetAll() {
+  clearTimers();
+  tweens.clear();
+  sim.mode = "semi";
+  sim.magRounds = 30;
+  sim.stowedRounds = 30;
+  sim.chambered = true;
+  sim.magIn = true;
+  sim.magVisible = true;
+  sim.magDrop = 0;
+  sim.bolt = 0;
+  sim.boltLocked = false;
+  sim.charge = 0;
+  sim.hammer = 0;
+  sim.triggerPull = 0;
+  sim.selectorAngle = Math.PI / 2;
+  sim.cover = 0;
+  sim.coverTarget = 0;
+  sim.sightFront = 0;
+  sim.sightFrontTarget = 0;
+  sim.sightRear = 0;
+  sim.sightRearTarget = 0;
+  sim.triggerHeld = false;
+  sim.triggerLocked = false;
+  sim.cycle = false;
+  sim.charging = false;
+  sim.reloading = false;
+  sim.dryLatch = false;
+  sim.explode = 0;
+  sim.explodeTarget = 0;
+  sim.recoil = 0;
+  sim.flashAge = 1;
+  sim.shots = 0;
+  sim.selected = null;
+  sim.hovered = null;
+  sim.labelsOn = true;
+  flashFx.active = false;
+  for (const s of smokePool) s.active = false;
+  for (const b of brassPool) b.active = false;
+  els.labelsToggle.checked = true;
+  cam.pan = [0, 0];
+  cam.zoom = 1;
+  cam.yawTween = null;
+  setView("hero", true, true);
+  sim.autoOrbit = true;
+  syncOrbitUI();
+  updateHud();
+  updateModeUI();
+  updateExplodeUI();
+  updatePartSelectionUI();
+  closeHelp();
+  updateSafeRect();
+  toast("已复位", 1400);
+}
+
+/* =============================== UI helpers =============================== */
+const els = {
+  panel: $("partsPanel"), partList: $("partList"), partDetail: $("partDetail"),
+  pdNum: $("pdNum"), pdName: $("pdName"), pdEn: $("pdEn"), pdDesc: $("pdDesc"),
+  pdMeta: $("pdMeta"), pdHints: $("pdHints"), pdClose: $("pdClose"),
+  labels: $("labels"), leader: $("leader"), tooltip: $("tooltip"),
+  hudAmmo: $("hudAmmo"), hudPlus: $("hudPlus"), hudMode: $("hudMode"), hudTicks: $("hudTicks"),
+  hudChamber: $("hudChamber"), hudBolt: $("hudBolt"),
+  dock: $("dock"), hintline: $("hintline"), toast: $("toast"),
+  explodeRange: $("explodeRange"), explodeOut: $("explodeOut"), explodePlay: $("btnExplodePlay"),
+  explodePlayLabel: $("explodePlayLabel"), labelsToggle: $("labelsToggle"),
+  btnTrigger: $("btnTrigger"), btnCharge: $("btnCharge"), btnReload: $("btnReload"),
+  btnMag: $("btnMag"), btnPort: $("btnPort"), modeSeg: $("modeSeg"),
+  btnView: $("btnView"), btnOrbit: $("btnOrbit"), btnReset: $("btnReset"),
+  btnParts: $("btnParts"), btnPanelClose: $("btnPanelClose"), btnSound: $("btnSound"),
+  btnHelp: $("btnHelp"), helpBackdrop: $("helpBackdrop"), btnHelpClose: $("btnHelpClose"),
+  fpsBadge: $("fpsBadge"), fallback: $("fallback"), partCount: $("partCount"),
+  topbar: document.querySelector(".topbar"), hud: document.querySelector(".hud"),
+  canvas: null,
+};
+const uiCache = { ammo: -1, magIn: null, mode: null, port: null, trigger: null, reload: null, charge: null, boltState: "" };
+let panelOpen = true;
+let lastHudAt = 0;
+let lastExplodeUiAt = 0;
+let toastTimer = 0;
+let helpOpen = false;
+
+function toast(msg, ms = 1800) {
+  if (!els.toast) return;
+  els.toast.textContent = msg;
+  els.toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => els.toast.classList.remove("show"), ms);
+}
+
+function buildTicks() {
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < 30; i++) frag.appendChild(document.createElement("i"));
+  els.hudTicks.appendChild(frag);
+}
+
+function updateHud() {
+  if (!els.hudAmmo) return;
+  const ammo = clamp(sim.magRounds, 0, 30);
+  if (uiCache.ammo !== ammo) {
+    const ticks = els.hudTicks.children;
+    for (let i = 0; i < ticks.length; i++) ticks[i].classList.toggle("on", i < ammo);
+    uiCache.ammo = ammo;
+  }
+  els.hudAmmo.textContent = String(ammo);
+  els.hudPlus.textContent = sim.chambered ? "+1" : "+0";
+  els.hudPlus.style.opacity = sim.chambered ? "1" : ".32";
+  els.hudMode.textContent = MODE_LABEL[sim.mode];
+  els.hudMode.classList.toggle("safe", sim.mode === "safe");
+  els.hudChamber.textContent = sim.chambered ? "CHAMBERED" : "EMPTY";
+  els.hudChamber.className = sim.chambered ? "ok" : "warn";
+  const boltText = sim.boltLocked ? "BOLT LOCKED" : sim.bolt > .12 ? "CYCLING" : "BOLT CLOSED";
+  if (uiCache.boltState !== boltText) {
+    els.hudBolt.textContent = boltText;
+    els.hudBolt.className = sim.boltLocked ? "warn" : sim.bolt > .12 ? "" : "ok";
+    uiCache.boltState = boltText;
+  }
+  if (uiCache.magIn !== sim.magIn) {
+    els.btnMag.innerHTML = sim.magIn ? "卸弹匣<em>MAG / G</em>" : "装弹匣<em>MAG / G</em>";
+    uiCache.magIn = sim.magIn;
+  }
+  const portOn = sim.coverTarget > .5;
+  if (uiCache.port !== portOn) {
+    els.btnPort.classList.toggle("on", portOn);
+    els.btnPort.setAttribute("aria-pressed", String(portOn));
+    uiCache.port = portOn;
+  }
+  if (uiCache.trigger !== sim.triggerHeld) {
+    els.btnTrigger.classList.toggle("on", sim.triggerHeld);
+    uiCache.trigger = sim.triggerHeld;
+  }
+  if (uiCache.reload !== sim.reloading) {
+    els.btnReload.classList.toggle("on", sim.reloading);
+    els.btnReload.disabled = sim.reloading;
+    uiCache.reload = sim.reloading;
+  }
+  if (uiCache.charge !== sim.charging) {
+    els.btnCharge.classList.toggle("on", sim.charging);
+    uiCache.charge = sim.charging;
+  }
+}
+
+function updateModeUI() {
+  for (const b of els.modeSeg.querySelectorAll("button")) b.classList.toggle("on", b.dataset.mode === sim.mode);
+}
+
+function updateExplodeUI() {
+  if (!els.explodeRange) return;
+  const pct = Math.round(sim.explode * 100);
+  els.explodeRange.value = String(pct);
+  els.explodeOut.textContent = pct + "%";
+  els.explodeRange.style.setProperty("--pct", pct + "%");
+  els.explodePlayLabel.textContent = sim.explode > .5 ? "收起分解" : "播放分解";
+  els.labelsToggle.checked = sim.labelsOn;
+}
+
+function syncOrbitUI() {
+  els.btnOrbit.classList.toggle("on", sim.autoOrbit);
+  els.btnOrbit.setAttribute("aria-pressed", String(sim.autoOrbit));
+}
+function updateViewButton() {
+  els.btnView.innerHTML = "视角 · " + viewNames[sim.view] + "<em></em>";
+}
+
+function setAutoOrbit(on) {
+  sim.autoOrbit = !!on;
+  if (on) cam.yawTween = null;
+  syncOrbitUI();
+}
+function toggleAutoOrbit() {
+  setAutoOrbit(!sim.autoOrbit);
+  if (sim.autoOrbit) toast("自动旋转开启", 900);
+}
+
+/* selection / hover */
+let partRows = [];
+const labelItems = [];
+const SVGNS = "http://www.w3.org/2000/svg";
+
+function buildPartRows() {
+  const frag = document.createDocumentFragment();
+  for (const p of PARTS) {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "part-row";
+    row.dataset.id = p.id;
+    row.innerHTML = `<span class="num">${pad2(p.num)}</span><span class="nm">${p.cn}<em>${p.en}</em></span><span class="dot${p.interactive ? " live" : ""}"></span>`;
+    row.addEventListener("click", () => selectPart(p.id, { stopOrbit: true }));
+    row.addEventListener("pointerenter", () => {
+      sim.hovered = p.id;
+      for (const r of partRows) r.classList.toggle("hov", r.dataset.id === p.id);
+    });
+    row.addEventListener("pointerleave", () => {
+      if (sim.hovered === p.id) sim.hovered = null;
+      row.classList.remove("hov");
+    });
+    frag.appendChild(row);
+    partRows.push(row);
+  }
+  els.partList.appendChild(frag);
+  els.partCount.textContent = `${PARTS.length} COMPONENTS`;
+}
+
+function buildLabels() {
+  for (const p of PARTS) {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "label";
+    el.tabIndex = -1;
+    el.innerHTML = `<b>${pad2(p.num)}</b>${p.cn}`;
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      selectPart(p.id, { stopOrbit: true });
+    });
+    el.addEventListener("pointerenter", () => { sim.hovered = p.id; });
+    el.addEventListener("pointerleave", () => { if (sim.hovered === p.id) sim.hovered = null; });
+    els.labels.appendChild(el);
+    const line = document.createElementNS(SVGNS, "line");
+    line.setAttribute("stroke", "rgba(226,178,107,.34)");
+    line.setAttribute("stroke-width", "1");
+    line.setAttribute("opacity", "0");
+    const dot = document.createElementNS(SVGNS, "circle");
+    dot.setAttribute("r", "1.6");
+    dot.setAttribute("fill", "rgba(226,178,107,.85)");
+    dot.setAttribute("opacity", "0");
+    els.leader.appendChild(line);
+    els.leader.appendChild(dot);
+    labelItems.push({ part: p, el, line, dot, w: 60, h: 20, visible: false });
+  }
+}
+
+function selectPart(id, opts = {}) {
+  if (id && !PARTS_BY_ID[id]) return;
+  sim.selected = id;
+  if (opts.stopOrbit) {
+    setAutoOrbit(false);
+  }
+  if (id && viewport.W <= 1180 && !opts.noPanel) setPanel(true);
+  updatePartSelectionUI();
+  if (id && !opts.quiet) Snd.help();
+}
+
+function updatePartSelectionUI() {
+  for (const r of partRows) r.classList.toggle("sel", r.dataset.id === sim.selected);
+  const p = sim.selected ? PARTS_BY_ID[sim.selected] : null;
+  els.panel.classList.toggle("has-sel", !!p);
+  if (p) {
+    els.pdNum.textContent = pad2(p.num);
+    els.pdName.textContent = p.cn;
+    els.pdEn.textContent = p.en;
+    els.pdDesc.textContent = p.desc;
+    els.pdMeta.textContent = `${p.spec} · ${p.tris.toLocaleString("en-US")} tris`;
+    els.pdHints.innerHTML = (p.hints || []).map((h) => `<span>${h}</span>`).join("");
+    const row = partRows.find((r) => r.dataset.id === p.id);
+    if (row) row.scrollIntoView({ block: "nearest" });
+  }
+  for (const it of labelItems) {
+    it.el.classList.toggle("sel", it.part.id === sim.selected);
+  }
+}
+
+function updateSafeRect() {
+  const W = viewport.W, H = viewport.H;
+  const dockRect = els.dock.getBoundingClientRect();
+  document.documentElement.style.setProperty("--dock-h", Math.round(dockRect.height + 16) + "px");
+  let x0, y0, x1, y1;
+  if (document.body.classList.contains("poster")) {
+    x0 = 24; y0 = 24; x1 = W - 24; y1 = H - 24;
+  } else {
+    x0 = 20;
+    y0 = 74;
+    x1 = W - 20;
+    y1 = dockRect.top - 30;
+    if (panelOpen && W > 1180) x0 = Math.max(x0, els.panel.getBoundingClientRect().right + 20);
+    if (W <= 720) {
+      x0 = 12; y0 = 64; x1 = W - 12; y1 = dockRect.top - 18;
+    }
+  }
+  if (x1 - x0 < 160) x1 = Math.min(W - 8, x0 + 160);
+  if (y1 - y0 < 160) y1 = Math.min(H - 8, y0 + 160);
+  safe.x0 = x0; safe.y0 = y0; safe.x1 = x1; safe.y1 = y1;
+  safe.cx = (x0 + x1) / 2;
+  safe.cy = (y0 + y1) / 2;
+}
+
+function setPanel(open) {
+  panelOpen = open;
+  els.panel.classList.toggle("closed", !open);
+  els.btnParts.setAttribute("aria-pressed", String(open));
+  updateSafeRect();
+}
+function togglePanel() {
+  if (openPanelOnMobileOnly()) { setPanel(!panelOpen); return; }
+  setPanel(!panelOpen);
+}
+function openPanelOnMobileOnly() { return true; }
+
+function setView(name, immediate = false, keepAuto = false) {
+  if (!views[name]) return;
+  sim.view = name;
+  cam.pan = [0, 0];
+  cam.zoom = 1;
+  const v = views[name];
+  if (immediate) {
+    cam.yaw = v.yaw;
+    cam.pitch = v.pitch;
+    cam.yawTween = null;
+    sim.autoOrbit = keepAuto ? sim.autoOrbit : false;
+    syncOrbitUI();
+  } else {
+    let dy = v.yaw - cam.yaw;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    cam.yawTween = { yaw0: cam.yaw, dy, pitch0: cam.pitch, pitch1: v.pitch, t: 0, dur: .8 };
+    if (!keepAuto) {
+      sim.autoOrbit = false;
+      syncOrbitUI();
+    }
+  }
+  updateViewButton();
+}
+function cycleView() {
+  const i = viewOrder.indexOf(sim.view);
+  setView(viewOrder[(i + 1) % viewOrder.length], false, false);
+}
+
+/* labels + tooltip */
+function projectPoint(m, p) {
+  const x = m[0]*p[0] + m[4]*p[1] + m[8]*p[2] + m[12];
+  const y = m[1]*p[0] + m[5]*p[1] + m[9]*p[2] + m[13];
+  const z = m[2]*p[0] + m[6]*p[1] + m[10]*p[2] + m[14];
+  const w = m[3]*p[0] + m[7]*p[1] + m[11]*p[2] + m[15];
+  if (w <= .0001) return null;
+  return { x: x / w, y: y / w, z: z / w, w };
+}
+
+function updateLabels() {
+  if (!els.labels) return;
+  const show = sim.labelsOn && sim.explode > .045 && viewport.W > 900 && !document.body.classList.contains("poster");
+  els.labels.classList.toggle("off", !show);
+  els.leader.style.opacity = show ? "1" : "0";
+  if (!show || !lastProjection) {
+    for (const it of labelItems) {
+      if (!it.visible) continue;
+      it.el.style.display = "none";
+      it.line.setAttribute("opacity", "0");
+      it.dot.setAttribute("opacity", "0");
+      it.visible = false;
+    }
+    return;
+  }
+  const cm = lastProjection;
+  const groups = { L: [], R: [] };
+  for (const it of labelItems) {
+    const p = it.part;
+    if (!p.visible()) {
+      if (it.visible) {
+        it.el.style.display = "none";
+        it.line.setAttribute("opacity", "0");
+        it.dot.setAttribute("opacity", "0");
+        it.visible = false;
+      }
+      continue;
+    }
+    const c = partCenterWorld(p);
+    const nd = projectPoint(cm.viewProj, c);
+    if (!nd || nd.z < -1 || nd.z > 1) {
+      if (it.visible) {
+        it.el.style.display = "none";
+        it.line.setAttribute("opacity", "0");
+        it.dot.setAttribute("opacity", "0");
+        it.visible = false;
+      }
+      continue;
+    }
+    const sx = (nd.x * .5 + .5) * viewport.W;
+    const sy = (.5 - nd.y * .5) * viewport.H;
+    it.visible = true;
+    it.sx = sx; it.sy = sy;
+    it.el.style.display = "";
+    it.el.classList.toggle("hov", sim.hovered === p.id);
+    it.el.classList.toggle("sel", sim.selected === p.id);
+    it.w = it.el.offsetWidth || it.w;
+    it.h = it.el.offsetHeight || it.h;
+    const side = sx < safe.cx ? "L" : "R";
+    let x = side === "L" ? sx - 26 - it.w : sx + 26;
+    x = clamp(x, safe.x0 + 3, Math.max(safe.x0 + 3, safe.x1 - it.w - 3));
+    groups[side].push({ it, x, y: sy, side });
+  }
+  for (const side of ["L", "R"]) {
+    const arr = groups[side];
+    arr.sort((a, b) => a.y - b.y);
+    const minY = safe.y0 + 14, maxY = safe.y1 - 12;
+    let prevBottom = -Infinity;
+    for (const item of arr) {
+      const half = item.it.h / 2;
+      item.y = Math.max(item.y, minY + half, prevBottom + half + 5);
+      prevBottom = item.y + half;
+    }
+    let overflow = prevBottom - maxY;
+    if (overflow > 0) {
+      for (const item of arr) item.y -= overflow;
+    }
+    for (const item of arr) {
+      item.y = clamp(item.y, minY + item.it.h / 2, maxY - item.it.h / 2);
+    }
+    for (const item of arr) {
+      const it = item.it;
+      it.el.style.left = item.x.toFixed(1) + "px";
+      it.el.style.top = item.y.toFixed(1) + "px";
+      const edgeX = side === "L" ? item.x + it.w : item.x;
+      it.line.setAttribute("x1", it.sx.toFixed(1));
+      it.line.setAttribute("y1", it.sy.toFixed(1));
+      it.line.setAttribute("x2", edgeX.toFixed(1));
+      it.line.setAttribute("y2", item.y.toFixed(1));
+      it.line.setAttribute("opacity", "1");
+      it.dot.setAttribute("cx", it.sx.toFixed(1));
+      it.dot.setAttribute("cy", it.sy.toFixed(1));
+      it.dot.setAttribute("opacity", ".9");
+    }
+  }
+}
+
+function setHover(id) {
+  if (sim.hovered === id) return;
+  sim.hovered = id;
+  const p = id ? PARTS_BY_ID[id] : null;
+  for (const r of partRows) r.classList.toggle("hov", r.dataset.id === id);
+  if (els.canvas) els.canvas.classList.toggle("pointing", !!p);
+  if (!p) {
+    els.tooltip.classList.remove("show");
+    return;
+  }
+  const hint = p.hints && p.hints.length ? p.hints[0] : p.interactive ? "" : "";
+  els.tooltip.innerHTML = `<b>${pad2(p.num)}</b>${p.cn}${hint ? `<span style="color:#7d8994"> · ${hint}</span>` : ""}`;
+  els.tooltip.classList.add("show");
+}
+function moveTooltip(x, y) {
+  if (!els.tooltip.classList.contains("show")) return;
+  els.tooltip.style.left = clamp(x, 4, viewport.W - 190) + "px";
+  els.tooltip.style.top = clamp(y, 4, viewport.H - 34) + "px";
+}
+
+/* ============================== picking / input =========================== */
+const drag = {
+  active: false, kind: null, partId: null, part: null,
+  x0: 0, y0: 0, lastX: 0, lastY: 0, moved: false,
+  boltStart: 0, zoom0: 1, dist0: 0, action: null,
+};
+const pointers = new Map();
+let pinch = null;
+
+function screenRay(x, y) {
+  const cm = lastProjection || cameraMatrices();
+  const nx = (x / viewport.W) * 2 - 1 - cm.shift[0];
+  const ny = 1 - (y / viewport.H) * 2 - cm.shift[1];
+  const tanV = Math.tan(cam.fov / 2);
+  const tanH = tanV * (viewport.W / viewport.H);
+  const d = V3.norm([
+    -cm.basis.dir[0] + cm.basis.right[0] * nx * tanH + cm.basis.up[0] * ny * tanV,
+    -cm.basis.dir[1] + cm.basis.right[1] * nx * tanH + cm.basis.up[1] * ny * tanV,
+    -cm.basis.dir[2] + cm.basis.right[2] * nx * tanH + cm.basis.up[2] * ny * tanV,
+  ]);
+  return { o: cm.eye, d };
+}
+function rayAABB(o, d, a) {
+  let tmin = 0, tmax = 1e9;
+  for (let k = 0; k < 3; k++) {
+    const inv = 1 / (Math.abs(d[k]) < 1e-9 ? 1e-9 : d[k]);
+    let t0 = (a.min[k] - o[k]) * inv;
+    let t1 = (a.max[k] - o[k]) * inv;
+    if (t0 > t1) { const tt = t0; t0 = t1; t1 = tt; }
+    tmin = Math.max(tmin, t0);
+    tmax = Math.min(tmax, t1);
+    if (tmin > tmax) return null;
+  }
+  return tmin;
+}
+function pickPart(x, y) {
+  const ray = screenRay(x, y);
+  let best = null, bestT = Infinity;
+  let bestInt = null, bestIntT = Infinity;
+  for (const p of PARTS) {
+    if (!p.visible()) continue;
+    const t = rayAABB(ray.o, ray.d, p.worldAABB);
+    if (t == null) continue;
+    if (t < bestT) { bestT = t; best = p; }
+    if (p.interactive && t < bestIntT) { bestIntT = t; bestInt = p; }
+  }
+  if (sim.explode < .12 && bestInt) return { part: bestInt, t: bestIntT };
+  return best ? { part: best, t: bestT } : null;
+}
+
+function stopAutoOrbit() {
+  if (!sim.autoOrbit) return;
+  sim.autoOrbit = false;
+  syncOrbitUI();
+}
+
+function chargeAxis() {
+  updatePartMatrices();
+  const cm = lastProjection || cameraMatrices();
+  const a = M4.point(rootMatrix, [-.090, .017, 0]);
+  const b = M4.point(rootMatrix, [-.150, .017, 0]);
+  const pa = projectPoint(cm.viewProj, a), pb = projectPoint(cm.viewProj, b);
+  if (!pa || !pb) return { dir: [0, -1], len: 100 };
+  const ax = (pa.x * .5 + .5) * viewport.W, ay = (.5 - pa.y * .5) * viewport.H;
+  const bx = (pb.x * .5 + .5) * viewport.W, by = (.5 - pb.y * .5) * viewport.H;
+  const dx = bx - ax, dy = by - ay;
+  const len = Math.hypot(dx, dy) || 1;
+  return { dir: [dx / len, dy / len], len };
+}
+
+function onPointerDown(e) {
+  if (document.body.classList.contains("poster")) return;
+  Snd.init();
+  if (e.pointerType === "touch") {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      const arr = [...pointers.values()];
+      pinch = { d0: Math.max(20, Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y)), zoom0: cam.zoom };
+      if (drag.kind === "trigger") triggerUp();
+      drag.active = false;
+      drag.kind = "pinch";
+      drag.moved = true;
+      stopAutoOrbit();
+      return;
+    }
+  }
+  if (e.button === 2 || e.button === 1) {
+    e.preventDefault();
+    drag.active = true;
+    drag.kind = "pan";
+    drag.x0 = drag.lastX = e.clientX;
+    drag.y0 = drag.lastY = e.clientY;
+    drag.moved = false;
+    drag.part = null;
+    drag.partId = null;
+    stopAutoOrbit();
+    try { els.canvas.setPointerCapture(e.pointerId); } catch {}
+    els.canvas.classList.add("grabbing");
+    return;
+  }
+  if (e.button !== 0) return;
+  stopAutoOrbit();
+  els.tooltip.classList.remove("show");
+  const hit = pickPart(e.clientX, e.clientY);
+  drag.active = true;
+  drag.moved = false;
+  drag.x0 = drag.lastX = e.clientX;
+  drag.y0 = drag.lastY = e.clientY;
+  drag.part = hit ? hit.part : null;
+  drag.partId = hit ? hit.part.id : null;
+  drag.action = null;
+  drag.boltStart = sim.bolt;
+  els.canvas.classList.add("grabbing");
+  try { els.canvas.setPointerCapture(e.pointerId); } catch {}
+
+  const p = hit ? hit.part : null;
+  if (p && p.interactive && sim.explode < .05) {
+    selectPart(p.id, { quiet: true, noPanel: true });
+    if (p.id === "trigger") {
+      drag.kind = "trigger";
+      triggerDown();
+      return;
+    }
+    if (p.id === "charge") {
+      drag.kind = "charge";
+      return;
+    }
+    if (p.id === "mag") {
+      drag.kind = "mag";
+      cancelTween("magDrop");
+      return;
+    }
+    if (p.id === "cover") {
+      drag.kind = "tap";
+      drag.action = togglePort;
+      return;
+    }
+    if (p.id === "selector") {
+      drag.kind = "tap";
+      drag.action = cycleMode;
+      return;
+    }
+    if (p.id === "frontsight" || p.id === "rearsight") {
+      drag.kind = "tap";
+      drag.action = toggleSights;
+      return;
+    }
+  }
+  drag.kind = "orbit";
+}
+
+function onPointerMove(e) {
+  if (drag.kind === "pinch") {
+    if (e.pointerType === "touch" && pointers.has(e.pointerId)) {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const arr = [...pointers.values()];
+      if (arr.length >= 2 && pinch) {
+        const d = Math.max(20, Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y));
+        cam.zoom = clamp(pinch.zoom0 * (pinch.d0 / d), .5, 3.2);
+      }
+    }
+    return;
+  }
+  if (!drag.active) {
+    if (document.body.classList.contains("poster")) return;
+    const hit = pickPart(e.clientX, e.clientY);
+    setHover(hit ? hit.part.id : null);
+    moveTooltip(e.clientX, e.clientY);
+    return;
+  }
+  const dx = e.clientX - drag.lastX;
+  const dy = e.clientY - drag.lastY;
+  if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 5) {
+    drag.moved = true;
+    els.tooltip.classList.remove("show");
+    setHover(null);
+  }
+  drag.lastX = e.clientX;
+  drag.lastY = e.clientY;
+  if (!drag.moved) return;
+  if (drag.kind === "orbit") {
+    cam.yawTween = null;
+    cam.yaw -= dx * .0055;
+    cam.pitch = clamp(cam.pitch + dy * .0055, -.32, 1.46);
+  } else if (drag.kind === "pan") {
+    cam.pan[0] = clamp(cam.pan[0] - dx * cam.dist * .00067, -.45, .45);
+    cam.pan[1] = clamp(cam.pan[1] + dy * cam.dist * .00067, -.35, .35);
+  } else if (drag.kind === "charge") {
+    if (!sim.charging) {
+      if (!manualChargeStart()) return;
+    }
+    const ax = chargeAxis();
+    const delta = (e.clientX - drag.x0) * ax.dir[0] + (e.clientY - drag.y0) * ax.dir[1];
+    const amount = clamp(delta / (ax.len * .95), 0, 1);
+    manualChargeSet(amount, drag.boltStart);
+  } else if (drag.kind === "mag") {
+    const amount = clamp((e.clientY - drag.y0) / 145, 0, 1);
+    sim.magDrop = amount;
+    sim.magVisible = true;
+  }
+}
+
+function onPointerUp(e) {
+  if (e.pointerType === "touch") pointers.delete(e.pointerId);
+  if (drag.kind === "pinch") {
+    if (pointers.size < 2) {
+      pinch = null;
+      drag.kind = null;
+      drag.active = false;
+    }
+    return;
+  }
+  if (!drag.active) return;
+  if (drag.kind === "trigger") {
+    triggerUp();
+  } else if (drag.kind === "charge") {
+    if (sim.charging) {
+      manualChargeEnd(sim.charge > .22);
+    } else if (!drag.moved) {
+      rack();
+    }
+  } else if (drag.kind === "mag") {
+    if (sim.magDrop > .35) {
+      sim.magIn = false;
+      sim.magVisible = true;
+      sim.stowedRounds = sim.magRounds;
+      sim.magRounds = 0;
+      sim.triggerHeld = false;
+      cancelTween("magDrop");
+      tween("magDrop", 1, .22, {
+        ease: "in",
+        done: () => { if (!sim.magIn) sim.magVisible = false; updateHud(); },
+      });
+      Snd.magOut();
+      toast(`弹匣已卸下 · ${sim.stowedRounds} 发`, 1600);
+      updateHud();
+    } else if (!drag.moved) {
+      dropMag();
+    } else {
+      tween("magDrop", 0, .18, { ease: "out" });
+    }
+  } else if (drag.kind === "tap") {
+    if (!drag.moved && drag.action) drag.action();
+  } else if (drag.kind === "orbit") {
+    if (!drag.moved) {
+      if (drag.part) selectPart(drag.part.id, { stopOrbit: false, noPanel: viewport.W <= 1180 ? false : true });
+      else selectPart(null, { stopOrbit: false });
+    }
+  }
+  drag.active = false;
+  drag.kind = null;
+  drag.part = null;
+  drag.partId = null;
+  drag.action = null;
+  els.canvas.classList.remove("grabbing");
+  try { els.canvas.releasePointerCapture(e.pointerId); } catch {}
+}
+
+function onPointerCancel(e) {
+  if (drag.kind === "trigger") triggerUp();
+  if (drag.kind === "charge" && sim.charging) manualChargeEnd(false);
+  if (drag.kind === "mag") tween("magDrop", 0, .15, { ease: "out" });
+  pointers.delete(e.pointerId);
+  if (drag.kind === "pinch") {
+    pinch = null;
+    drag.kind = null;
+  }
+  drag.active = false;
+  drag.kind = null;
+  drag.part = null;
+  drag.action = null;
+  els.canvas.classList.remove("grabbing");
+}
+
+function onWheel(e) {
+  if (document.body.classList.contains("poster")) return;
+  e.preventDefault();
+  stopAutoOrbit();
+  cam.zoom = clamp(cam.zoom * Math.exp(e.deltaY * .0012), .5, 3.2);
+}
+
+/* ================================ keyboard =============================== */
+function isTyping(e) {
+  const t = e.target;
+  return t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+}
+function onKeyDown(e) {
+  if (isTyping(e)) return;
+  if (e.key === "Escape") {
+    if (helpOpen) { closeHelp(); return; }
+    if (sim.selected) { selectPart(null); return; }
+    if (panelOpen && viewport.W <= 1180) setPanel(false);
+    return;
+  }
+  if (e.key === "?" || (e.key === "/" && e.shiftKey)) { e.preventDefault(); openHelp(!helpOpen); return; }
+  if (helpOpen) return;
+  if (e.key === " " || e.code === "Space") {
+    e.preventDefault();
+    if (!e.repeat) triggerDown();
+    return;
+  }
+  if (e.repeat) return;
+  switch (e.key.toLowerCase()) {
+    case "r": reload(); break;
+    case "c": rack(); break;
+    case "e": togglePort(); break;
+    case "g":
+      if (sim.magIn) dropMag(); else insertMag(false);
+      break;
+    case "m": toggleSound(); break;
+    case "x": toggleExplosion(); break;
+    case "v": cycleView(); break;
+    case "b": setLabels(!sim.labelsOn); break;
+    case "p": setPanel(!panelOpen); break;
+    case "1": setMode("safe"); break;
+    case "2": setMode("semi"); break;
+    case "3": setMode("auto"); break;
+    default: break;
+  }
+}
+function onKeyUp(e) {
+  if (e.key === " " || e.code === "Space") triggerUp();
+}
+
+/* ================================ buttons ================================ */
+function toggleSound() {
+  Snd.init();
+  Snd.setOn(!sim.sound);
+  els.btnSound.setAttribute("aria-pressed", String(sim.sound));
+  els.btnSound.title = sim.sound ? "声音 (M)" : "静音 (M)";
+  toast(sim.sound ? "声音已开启" : "声音已关闭", 1000);
+}
+function setLabels(on) {
+  sim.labelsOn = !!on;
+  els.labelsToggle.checked = sim.labelsOn;
+  toast(sim.labelsOn ? "标注已开启" : "标注已关闭", 900);
+  if (sim.labelsOn && sim.explode < .05) toast("标注会在分解视图中显示", 1600);
+}
+function openHelp(on = true) {
+  helpOpen = on;
+  els.helpBackdrop.classList.toggle("on", on);
+  if (on) Snd.help();
+}
+function closeHelp() {
+  helpOpen = false;
+  els.helpBackdrop.classList.remove("on");
+}
+
+function wireUI() {
+  els.modeSeg.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-mode]");
+    if (b) setMode(b.dataset.mode);
+  });
+  els.btnTrigger.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    try { els.btnTrigger.setPointerCapture?.(e.pointerId); } catch {}
+    triggerDown();
+  });
+  const upTrigger = () => triggerUp();
+  els.btnTrigger.addEventListener("pointerup", upTrigger);
+  els.btnTrigger.addEventListener("pointercancel", upTrigger);
+  els.btnTrigger.addEventListener("pointerleave", upTrigger);
+  window.addEventListener("pointerup", upTrigger);
+  els.btnCharge.addEventListener("click", rack);
+  els.btnReload.addEventListener("click", reload);
+  els.btnMag.addEventListener("click", () => {
+    if (sim.magIn) dropMag();
+    else insertMag(false);
+  });
+  els.btnPort.addEventListener("click", togglePort);
+  els.explodePlay.addEventListener("click", toggleExplosion);
+  els.explodeRange.addEventListener("input", (e) => {
+    setExplodeValue(Number(e.target.value) / 100);
+  });
+  els.labelsToggle.addEventListener("change", (e) => setLabels(e.target.checked));
+  els.btnView.addEventListener("click", cycleView);
+  els.btnOrbit.addEventListener("click", toggleAutoOrbit);
+  els.btnReset.addEventListener("click", resetAll);
+  els.btnParts.addEventListener("click", togglePanel);
+  els.btnPanelClose.addEventListener("click", () => setPanel(false));
+  els.btnSound.addEventListener("click", toggleSound);
+  els.btnHelp.addEventListener("click", () => openHelp(true));
+  els.btnHelpClose.addEventListener("click", closeHelp);
+  els.helpBackdrop.addEventListener("click", (e) => { if (e.target === els.helpBackdrop) closeHelp(); });
+  els.pdClose.addEventListener("click", () => selectPart(null));
+  els.canvas.addEventListener("pointerdown", onPointerDown);
+  els.canvas.addEventListener("pointermove", onPointerMove);
+  els.canvas.addEventListener("pointerup", onPointerUp);
+  els.canvas.addEventListener("pointercancel", onPointerCancel);
+  els.canvas.addEventListener("pointerleave", () => {
+    if (!drag.active) { setHover(null); els.tooltip.classList.remove("show"); }
+  });
+  els.canvas.addEventListener("wheel", onWheel, { passive: false });
+  els.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("resize", resize);
+  document.addEventListener("pointerdown", () => Snd.init(), { once: true });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { triggerUp(); }
+  });
+}
+
+/* ============================ collision audit ============================ */
+function auditExplosion(opts = {}) {
+  const step = opts.step || .02;
+  const margin = opts.margin == null ? .0015 : opts.margin;
+  const threshold = opts.threshold == null ? .45 : opts.threshold;
+  const keys = ["triggerPull", "hammer", "cover", "sightFront", "sightRear", "selectorAngle",
+    "bolt", "charge", "magDrop", "explode", "magVisible", "magIn", "magRounds", "chambered",
+    "boltLocked", "recoil", "mode"];
+  const saved = {};
+  for (const k of keys) saved[k] = sim[k];
+  sim.triggerPull = 0;
+  sim.hammer = 0;
+  sim.cover = 0;
+  sim.sightFront = 0;
+  sim.sightRear = 0;
+  sim.selectorAngle = 0;
+  sim.bolt = 0;
+  sim.charge = 0;
+  sim.magDrop = 0;
+  sim.explode = 0;
+  sim.magVisible = true;
+  sim.magIn = true;
+  sim.magRounds = 30;
+  sim.chambered = true;
+  sim.boltLocked = false;
+  sim.recoil = 0;
+  sim.mode = "safe";
+  const parts = PARTS.filter((p) => p.visible());
+  const boxes = new Map();
+  const pairKey = (a, b) => (a.id < b.id ? a.id + "|" + b.id : b.id + "|" + a.id);
+  const rawOverlap = (a, b) => {
+    for (let k = 0; k < 3; k++) {
+      if (a.max[k] < b.min[k] || b.max[k] < a.min[k]) return false;
+    }
+    return true;
+  };
+  const gapOverlap = (a, b) => {
+    for (let k = 0; k < 3; k++) {
+      if (a.max[k] + margin <= b.min[k] || b.max[k] + margin <= a.min[k]) return false;
+    }
+    return true;
+  };
+  const computeBoxes = (t) => {
+    sim.explode = t;
+    for (const p of parts) boxes.set(p.id, worldAABB(p.aabb, partMatrix(p)));
+  };
+  computeBoxes(0);
+  const mated = new Set();
+  for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++) {
+    const a = parts[i], b = parts[j];
+    if (rawOverlap(boxes.get(a.id), boxes.get(b.id))) mated.add(pairKey(a, b));
+  }
+  const lastOverlap = new Map();
+  const collisionMap = new Map();
+  let tightMap = new Map();
+  const n = Math.round(1 / step);
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    computeBoxes(t);
+    for (let a = 0; a < parts.length; a++) for (let b = a + 1; b < parts.length; b++) {
+      const A = parts[a], B = parts[b];
+      const ba = boxes.get(A.id), bb = boxes.get(B.id);
+      const key = pairKey(A, B);
+      if (rawOverlap(ba, bb)) {
+        lastOverlap.set(key, t);
+        if (!mated.has(key) || t >= threshold) {
+          if (!collisionMap.has(key)) {
+            collisionMap.set(key, { a: A.cn, b: B.cn, at: +t.toFixed(2), mated: mated.has(key) });
+          }
+        }
+      } else if (t >= threshold && gapOverlap(ba, bb)) {
+        if (!tightMap.has(key)) tightMap.set(key, { a: A.cn, b: B.cn, at: +t.toFixed(2) });
+      }
+    }
+  }
+  const mates = [];
+  for (const key of mated) {
+    const [ia, ib] = key.split("|");
+    const sep = lastOverlap.get(key);
+    mates.push({ a: PARTS_BY_ID[ia].cn, b: PARTS_BY_ID[ib].cn, separation: sep == null ? 0 : +sep.toFixed(2) });
+  }
+  mates.sort((x, y) => y.separation - x.separation);
+  const overThreshold = mates.filter((m) => m.separation >= threshold - 1e-9);
+  computeBoxes(1);
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (const p of parts) {
+    const b = boxes.get(p.id);
+    for (let k = 0; k < 3; k++) {
+      if (b.min[k] < mn[k]) mn[k] = b.min[k];
+      if (b.max[k] > mx[k]) mx[k] = b.max[k];
+    }
+  }
+  const collisions = [...collisionMap.values()];
+  const tight = [...tightMap.values()];
+  sim.explode = saved.explode;
+  for (const k of keys) sim[k] = saved[k];
+  return {
+    pass: collisions.length === 0 && overThreshold.length === 0,
+    threshold,
+    step,
+    margin,
+    parts: parts.length,
+    matedPairs: mated.size,
+    mates: mates.slice(0, 8),
+    lateSeparations: overThreshold,
+    collisions,
+    tightClearances: tight,
+    boundsFinal: { min: mn.map((v) => +v.toFixed(3)), max: mx.map((v) => +v.toFixed(3)) },
+  };
+}
+
+/* ================================ debug ================================= */
+function snapshot() {
+  return {
+    mode: sim.mode,
+    magRounds: sim.magRounds,
+    stowedRounds: sim.stowedRounds,
+    chambered: sim.chambered,
+    magIn: sim.magIn,
+    magVisible: sim.magVisible,
+    bolt: +sim.bolt.toFixed(4),
+    boltLocked: sim.boltLocked,
+    charge: +sim.charge.toFixed(4),
+    hammer: +sim.hammer.toFixed(3),
+    triggerPull: +sim.triggerPull.toFixed(3),
+    triggerHeld: sim.triggerHeld,
+    triggerLocked: sim.triggerLocked,
+    cycle: sim.cycle,
+    charging: sim.charging,
+    reloading: sim.reloading,
+    cover: +sim.cover.toFixed(3),
+    coverTarget: sim.coverTarget,
+    sightFront: +sim.sightFront.toFixed(3),
+    selectorAngle: +sim.selectorAngle.toFixed(3),
+    explode: +sim.explode.toFixed(3),
+    recoil: +sim.recoil.toFixed(3),
+    shots: sim.shots,
+    selected: sim.selected,
+    view: sim.view,
+    autoOrbit: sim.autoOrbit,
+    sound: sim.sound,
+    labelsOn: sim.labelsOn,
+    parts: PARTS.length,
+    tris: PARTS.reduce((a, p) => a + p.tris, 0),
+    time: +sim.time.toFixed(2),
+  };
+}
+
+function projectPartRects() {
+  updatePartMatrices();
+  const cm = cameraMatrices();
+  const out = [];
+  for (const p of PARTS) {
+    if (!p.visible()) {
+      out.push({ id: p.id, cn: p.cn, visible: false });
+      continue;
+    }
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let behind = 0;
+    for (const c of aabbCorners(p.worldAABB)) {
+      const nd = projectPoint(cm.viewProj, c);
+      if (!nd || nd.z < -1 || nd.z > 1) { behind++; continue; }
+      const sx = (nd.x * .5 + .5) * viewport.W;
+      const sy = (.5 - nd.y * .5) * viewport.H;
+      if (sx < minX) minX = sx; if (sx > maxX) maxX = sx;
+      if (sy < minY) minY = sy; if (sy > maxY) maxY = sy;
+    }
+    const c = partCenterWorld(p);
+    const nd = projectPoint(cm.viewProj, c);
+    out.push({
+      id: p.id, cn: p.cn, visible: true, interactive: !!p.interactive,
+      behind,
+      rect: Number.isFinite(minX) ? [minX, minY, maxX - minX, maxY - minY].map((v) => +v.toFixed(1)) : null,
+      center: nd ? [+(((nd.x * .5 + .5) * viewport.W)).toFixed(1), +((.5 - nd.y * .5) * viewport.H).toFixed(1)] : null,
+    });
+  }
+  return out;
+}
+
+function asciiSnapshot(cols = 148, rows = 56, mode = "lum") {
+  if (!glReady) return "NO GL";
+  if (mode === "flat" || mode === "silhouette") debugMode = 1;
+  if (mode === "id") debugMode = 2;
+  drawFrame();
+  const w = canvas.width, h = canvas.height;
+  const px = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  if (mode === "id") {
+    const cols2 = cols, rows2 = rows;
+    const palette = PARTS.map((p) => {
+      const c = debugColor(p);
+      return [c[0] * 255, c[1] * 255, c[2] * 255];
+    });
+    const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let s = "";
+    for (let ry = 0; ry < rows2; ry++) {
+      for (let rx = 0; rx < cols2; rx++) {
+        const cx = Math.floor((rx + .5) * w / cols2);
+        const cy = Math.floor((rows2 - 1 - ry + .5) * h / rows2);
+        const i = (cy * w + cx) * 4;
+        let best = -1, bd = 1e9;
+        for (let k = 0; k < palette.length; k++) {
+          const dr = px[i] - palette[k][0], dg = px[i+1] - palette[k][1], db = px[i+2] - palette[k][2];
+          const dd = dr*dr + dg*dg + db*db;
+          if (dd < bd) { bd = dd; best = k; }
+        }
+        s += bd < 2500 && best >= 0 ? chars[best % 36] : " ";
+      }
+      s += "\n";
+    }
+    debugMode = 0;
+    return s + "legend " + PARTS.map((p, k) => chars[k % 36] + "=" + p.id).join(" ") + "\n";
+  }
+  const lum = new Float32Array(cols * rows);
+  let sum = 0, bright = 0, mx = 0;
+  for (let ry = 0; ry < rows; ry++) {
+    for (let rx = 0; rx < cols; rx++) {
+      const x0 = Math.floor(rx * w / cols), x1 = Math.max(x0 + 1, Math.floor((rx + 1) * w / cols));
+      const yTop = Math.floor((rows - 1 - ry) * h / rows);
+      const yBot = Math.max(yTop + 1, Math.floor((rows - ry) * h / rows));
+      let acc = 0, n = 0;
+      for (let y = yTop; y < yBot; y += 2) {
+        for (let x = x0; x < x1; x += 2) {
+          const i = (y * w + x) * 4;
+          acc += .2126 * px[i] + .7152 * px[i+1] + .0722 * px[i+2];
+          n++;
+        }
+      }
+      const v = n ? acc / n : 0;
+      lum[ry * cols + rx] = v;
+      sum += v;
+      if (v > 25) bright++;
+      if (v > mx) mx = v;
+    }
+  }
+  const ramp = " .·:-=+*#%@";
+  let out = "";
+  for (let ry = 0; ry < rows; ry++) {
+    for (let rx = 0; rx < cols; rx++) {
+      const v = lum[ry * cols + rx];
+      if (mode === "silhouette") {
+        out += v > 55 ? "#" : v > 30 ? "+" : " ";
+      } else if (mode === "mask") {
+        out += v > 15 ? "#" : v > 8 ? "+" : " ";
+      } else if (mode === "edge") {
+        const l = lum[ry * cols + Math.max(0, rx - 1)];
+        const r = lum[ry * cols + Math.min(cols - 1, rx + 1)];
+        const u = lum[Math.max(0, ry - 1) * cols + rx];
+        const d = lum[Math.min(rows - 1, ry + 1) * cols + rx];
+        const e = Math.abs(l - r) + Math.abs(u - d);
+        out += e > 18 ? "#" : e > 8 ? "+" : v > 20 ? "·" : " ";
+      } else {
+        const t = Math.pow(clamp(v / 255, 0, 1), .55);
+        const idx = t < .045 ? 0 : clamp(Math.floor(t * (ramp.length - 1) * 1.28), 0, ramp.length - 1);
+        out += ramp[idx];
+      }
+    }
+    out += "\n";
+  }
+  const cells = cols * rows;
+  if (mode === "flat" || mode === "silhouette") debugMode = 0;
+  return out + `mean=${(sum / cells).toFixed(1)} bright=${(bright / cells * 100).toFixed(1)}% max=${mx.toFixed(0)} ${viewport.W}x${viewport.H}`;
+}
+
+function debugCamera() {
+  updatePartMatrices();
+  const cm = cameraMatrices();
+  const tp = projectPoint(cm.viewProj, cam.target);
+  const want = desiredCamera();
+  const bounds = computeSceneBounds();
+  const tanV = Math.tan(cam.fov / 2);
+  const aspect = viewport.W / viewport.H;
+  const vt = M4.point(cm.view, cam.target);
+  const cp = cam.target;
+  const clip = [
+    cm.viewProj[0]*cp[0] + cm.viewProj[4]*cp[1] + cm.viewProj[8]*cp[2] + cm.viewProj[12],
+    cm.viewProj[1]*cp[0] + cm.viewProj[5]*cp[1] + cm.viewProj[9]*cp[2] + cm.viewProj[13],
+    cm.viewProj[3]*cp[0] + cm.viewProj[7]*cp[1] + cm.viewProj[11]*cp[2] + cm.viewProj[15],
+  ];
+  return {
+    viewTarget: vt.map((v) => +v.toFixed(4)),
+    targetClip: clip.map((v) => +v.toFixed(4)),
+    viewMatrix: [...cm.view].map((v) => +v.toFixed(4)),
+    yaw: +cam.yaw.toFixed(4),
+    pitch: +cam.pitch.toFixed(4),
+    zoom: cam.zoom,
+    dist: +cam.dist.toFixed(4),
+    smoothDist: +cam.smoothDist.toFixed(4),
+    wantDist: +want.dist.toFixed(4),
+    target: cam.target.map((v) => +v.toFixed(4)),
+    wantTarget: want.target.map((v) => +v.toFixed(4)),
+    smoothTarget: cam.smoothTarget.map((v) => +v.toFixed(4)),
+    eye: cm.eye.map((v) => +v.toFixed(4)),
+    safe: { ...safe },
+    viewport: [viewport.W, viewport.H],
+    shift: cm.shift.map((v) => +v.toFixed(4)),
+    targetScreen: tp ? [ +(((tp.x * .5 + .5) * viewport.W)).toFixed(1), +((.5 - tp.y * .5) * viewport.H).toFixed(1) ] : null,
+    bounds: {
+      min: bounds.min.map((v) => +v.toFixed(4)),
+      max: bounds.max.map((v) => +v.toFixed(4)),
+      center: bounds.center.map((v) => +v.toFixed(4)),
+    },
+    tanH: +(tanV * aspect).toFixed(4),
+    mH: +((safe.x1 - safe.x0) / viewport.W * .93).toFixed(4),
+    mV: +((safe.y1 - safe.y0) / viewport.H * .93).toFixed(4),
+  };
+}
+
+function partCoverage() {
+  if (!glReady) return null;
+  const w = canvas.width, h = canvas.height;
+  const pal = PARTS.map((p) => debugColor(p).map((c) => c * 255));
+  debugMode = 2;
+  drawFrame();
+  const px = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  debugMode = 0;
+  const counts = new Uint32Array(PARTS.length);
+  let covered = 0, total = 0;
+  for (let y = 0; y < h; y += 2) {
+    for (let x = 0; x < w; x += 2) {
+      const i = (y * w + x) * 4;
+      let best = -1, bd = 1e9;
+      for (let k = 0; k < pal.length; k++) {
+        const dr = px[i] - pal[k][0], dg = px[i+1] - pal[k][1], db = px[i+2] - pal[k][2];
+        const dd = dr*dr + dg*dg + db*db;
+        if (dd < bd) { bd = dd; best = k; }
+      }
+      total++;
+      if (bd < 2500 && best >= 0) { counts[best]++; covered++; }
+    }
+  }
+  return {
+    totalSampled: total,
+    coveredPct: +(covered / total * 100).toFixed(2),
+    parts: PARTS.map((p, k) => ({ id: p.id, cn: p.cn, px: counts[k] * 4, pct: +(counts[k] / total * 100).toFixed(2) })),
+  };
+}
+
+function contrastStats() {
+  if (!glReady) return null;
+  const w = canvas.width, h = canvas.height;
+  debugMode = 0;
+  drawFrame();
+  const normal = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, normal);
+  const pal = PARTS.map((p) => debugColor(p).map((c) => c * 255));
+  debugMode = 2;
+  drawFrame();
+  const id = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, id);
+  debugMode = 0;
+  let modelN = 0, bgN = 0, modelSum = 0, bgSum = 0;
+  const modelVals = [], bgVals = [];
+  for (let y = 0; y < h; y += 3) {
+    for (let x = 0; x < w; x += 3) {
+      const i = (y * w + x) * 4;
+      let best = -1, bd = 1e9;
+      for (let k = 0; k < pal.length; k++) {
+        const dr = id[i] - pal[k][0], dg = id[i+1] - pal[k][1], db = id[i+2] - pal[k][2];
+        const dd = dr*dr + dg*dg + db*db;
+        if (dd < bd) { bd = dd; best = k; }
+      }
+      const l = .2126 * normal[i] + .7152 * normal[i+1] + .0722 * normal[i+2];
+      if (bd < 2500 && best >= 0) { modelN++; modelSum += l; modelVals.push(l); }
+      else { bgN++; bgSum += l; bgVals.push(l); }
+    }
+  }
+  modelVals.sort((a, b) => a - b);
+  bgVals.sort((a, b) => a - b);
+  const q = (arr, p) => arr.length ? +arr[Math.min(arr.length - 1, Math.floor(p * arr.length))].toFixed(1) : 0;
+  return {
+    modelPct: +(modelN / (modelN + bgN) * 100).toFixed(2),
+    modelMean: +(modelSum / Math.max(1, modelN)).toFixed(2),
+    modelP50: q(modelVals, .5), modelP90: q(modelVals, .9), modelP99: q(modelVals, .99),
+    bgMean: +(bgSum / Math.max(1, bgN)).toFixed(2),
+    bgP90: q(bgVals, .9),
+  };
+}
+
+function pixelStats() {
+  if (!glReady) return null;
+  drawFrame();
+  const w = canvas.width, h = canvas.height;
+  const px = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  const vals = [];
+  let sum = 0, rgb = [0, 0, 0], count = 0, bright = 0;
+  for (let y = 0; y < h; y += 4) {
+    for (let x = 0; x < w; x += 4) {
+      const i = (y * w + x) * 4;
+      const l = .2126 * px[i] + .7152 * px[i+1] + .0722 * px[i+2];
+      vals.push(l);
+      sum += l; rgb[0] += px[i]; rgb[1] += px[i+1]; rgb[2] += px[i+2];
+      count++;
+      if (l > 30) bright++;
+    }
+  }
+  vals.sort((a, b) => a - b);
+  const q = (p) => vals[Math.min(vals.length - 1, Math.floor(p * vals.length))];
+  return {
+    w, h,
+    mean: +(sum / count).toFixed(2),
+    p50: +q(.5).toFixed(1), p90: +q(.9).toFixed(1), p99: +q(.99).toFixed(1), max: +q(1).toFixed(1),
+    brightPct: +(bright / count * 100).toFixed(2),
+    meanRGB: rgb.map((v) => +(v / count).toFixed(1)),
+    drawCalls: frameStats.drawCalls, tris: frameStats.tris,
+  };
+}
+
+function uiMetrics() {
+  const r = (el) => {
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    return { x: +b.x.toFixed(1), y: +b.y.toFixed(1), w: +b.width.toFixed(1), h: +b.height.toFixed(1), right: +b.right.toFixed(1), bottom: +b.bottom.toFixed(1) };
+  };
+  const overlap = (a, b) => !!a && !!b && a.x < b.right && a.right > b.x && a.y < b.bottom && a.bottom > b.y;
+  const panel = r(els.panel), dock = r(els.dock), hud = r(els.hud), topbar = r(els.topbar);
+  const buttons = [...document.querySelectorAll(".dock button, .topmeta button")].map((b) => ({ text: b.textContent.trim().slice(0, 14), ...r(b) }));
+  return {
+    viewport: [viewport.W, viewport.H],
+    panelOpen, panel, dock, hud, topbar,
+    safe: { x0: safe.x0, y0: safe.y0, x1: safe.x1, y1: safe.y1, w: +(safe.x1 - safe.x0).toFixed(1), h: +(safe.y1 - safe.y0).toFixed(1) },
+    overlapPanelDock: overlap(panel, dock),
+    overlapHudDock: overlap(hud, dock),
+    dockInside: dock && dock.x >= 0 && dock.right <= viewport.W + .5 && dock.bottom <= viewport.H + .5,
+    buttons,
+    zeroButtons: buttons.filter((b) => b.w < 1 || b.h < 1).map((b) => b.text),
+    labelsShown: !els.labels.classList.contains("off"),
+    labelCount: [...els.labels.children].filter((e) => e.style.display !== "none").length,
+  };
+}
+
+/* =============================== lifecycle =============================== */
+function resize() {
+  if (!canvas) return;
+  viewport.W = window.innerWidth;
+  viewport.H = window.innerHeight;
+  let embedded = false;
+  try { embedded = window.self !== window.top; } catch { embedded = true; }
+  viewport.dpr = Math.min(window.devicePixelRatio || 1, embedded ? 1.25 : 1.75);
+  canvas.width = Math.max(1, Math.round(viewport.W * viewport.dpr));
+  canvas.height = Math.max(1, Math.round(viewport.H * viewport.dpr));
+  if (gl) gl.viewport(0, 0, canvas.width, canvas.height);
+  updateSafeRect();
+}
+
+function initUI() {
+  els.canvas = $("gl");
+  buildTicks();
+  buildPartRows();
+  buildLabels();
+  wireUI();
+  updateHud();
+  updateModeUI();
+  updateExplodeUI();
+  updateViewButton();
+  syncOrbitUI();
+  updatePartSelectionUI();
+}
+
+function applyQuery(params, poster) {
+  if (poster) {
+    sim.labelsOn = false;
+    sim.autoOrbit = false;
+    els.labelsToggle.checked = false;
+    syncOrbitUI();
+  }
+  if (params.get("orbit") === "0") {
+    sim.autoOrbit = false;
+    syncOrbitUI();
+  }
+  if (params.get("explode") != null) {
+    const v = parseFloat(params.get("explode"));
+    if (Number.isFinite(v)) setExplodeValue(clamp(v / 100, 0, 1));
+  }
+  if (params.get("view") && views[params.get("view")]) {
+    setView(params.get("view"), true, true);
+  }
+  if (params.get("cover") === "1") {
+    sim.cover = 1;
+    sim.coverTarget = 1;
+    updateHud();
+  }
+  if (params.get("sights") === "1") {
+    sim.sightFront = 1; sim.sightFrontTarget = 1;
+    sim.sightRear = 1; sim.sightRearTarget = 1;
+  }
+  if (params.get("mode") && ["safe", "semi", "auto"].includes(params.get("mode"))) {
+    sim.mode = params.get("mode");
+    sim.selectorAngle = modeAngle(sim.mode);
+    updateModeUI();
+    updateHud();
+  }
+  applyQuery.labelsDone = true;
+}
+
+function boot() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const poster = params.get("poster") === "1" || params.get("ui") === "0";
+    if (poster) document.body.classList.add("poster");
+    defineParts();
+    initGL();
+    initUI();
+    panelOpen = !poster && window.innerWidth > 1180;
+    els.panel.classList.toggle("closed", !panelOpen);
+    els.btnParts.setAttribute("aria-pressed", String(panelOpen));
+    els.btnSound.setAttribute("aria-pressed", "true");
+    els.btnOrbit.setAttribute("aria-pressed", "true");
+    updateSafeRect();
+    resize();
+    applyQuery(params, poster);
+    updateSafeRect();
+    updateHud();
+    updateExplodeUI();
+    window.HK416 = {
+      version: "1.0.0",
+      state: snapshot,
+      parts: () => PARTS.map((p) => ({ id: p.id, num: p.num, cn: p.cn, en: p.en, interactive: !!p.interactive, tris: p.tris, aabb: p.aabb, offset: p.offset, delay: p.delay })),
+      auditExplosion,
+      ascii: asciiSnapshot,
+      pixelStats,
+      partCoverage,
+      contrastStats,
+      projectedParts: projectPartRects,
+      debugCamera,
+      uiMetrics,
+      triggerDown,
+      triggerUp,
+      fireOnce: () => { const before = sim.shots; triggerDown(); triggerUp(); return sim.shots > before; },
+      rack,
+      reload,
+      dropMag,
+      insertMag,
+      togglePort,
+      toggleSights,
+      setMode,
+      setExplode: (v) => { setExplodeValue(v); updatePartMatrices(); },
+      playExplosion: toggleExplosion,
+      setView: (name) => setView(name, false, false),
+      resetAll,
+      setAutoOrbit,
+      setSound: (on) => { Snd.init(); Snd.setOn(!!on); },
+      setLabels,
+      selectPart,
+      setPanel,
+      waitFrames: (n = 1) => new Promise((res) => {
+        let i = 0;
+        const step = () => { i++; if (i >= n) res(); else requestAnimationFrame(step); };
+        requestAnimationFrame(step);
+      }),
+      metrics: () => ({ ...frameStats, glReady, parts: PARTS.length, tris: PARTS.reduce((a, p) => a + p.tris, 0) }),
+      help: openHelp,
+    };
+    requestAnimationFrame(frame);
+    setTimeout(() => {
+      if (!document.body.classList.contains("ready")) document.body.classList.add("ready");
+    }, 1200);
+  } catch (err) {
+    console.error(err);
+    const fb = $("fallback");
+    if (fb) {
+      fb.hidden = false;
+      const p = fb.querySelector("p");
+      if (p) p.textContent = "无法初始化 3D 视图：" + (err && err.message ? err.message : err);
+    }
+    document.body.classList.add("ready");
+  }
+}
+
+let lastFrameTime = performance.now();
+let fpsAccum = 0, fpsFrames = 0;
+let firstFrame = true;
+
+function frame(now) {
+  const dt = Math.min(.05, Math.max(.0005, (now - lastFrameTime) / 1000));
+  lastFrameTime = now;
+  update(dt);
+  drawFrame();
+  updateLabels();
+  if (sim.time - lastHudAt > .1) {
+    updateHud();
+    updateExplodeUI();
+    lastHudAt = sim.time;
+  }
+  fpsAccum += dt;
+  fpsFrames++;
+  if (fpsAccum >= .5) {
+    frameStats.fps = Math.round(fpsFrames / fpsAccum);
+    frameStats.dt = +(fpsAccum / fpsFrames).toFixed(4);
+    if (els.fpsBadge) els.fpsBadge.textContent = frameStats.fps + " FPS";
+    fpsAccum = 0;
+    fpsFrames = 0;
+  }
+  if (firstFrame) {
+    firstFrame = false;
+    document.body.classList.add("ready");
+  }
+  requestAnimationFrame(frame);
+}
+
+function update(dt) {
+  sim.time += dt;
+  updateTweens();
+  updateTimers();
+  updatePartMatrices();
+
+  const wantTrigger = sim.triggerHeld && sim.mode !== "safe" && !sim.reloading && !sim.charging && sim.explode < .04 ? 1 : 0;
+  sim.triggerPull += (wantTrigger - sim.triggerPull) * (1 - Math.exp(-dt * 26));
+
+  sim.cover += (sim.coverTarget - sim.cover) * (1 - Math.exp(-dt * 15));
+  sim.sightFront += (sim.sightFrontTarget - sim.sightFront) * (1 - Math.exp(-dt * 14));
+  sim.sightRear += (sim.sightRearTarget - sim.sightRear) * (1 - Math.exp(-dt * 14));
+
+  if (sim.triggerHeld && sim.mode === "auto" && !sim.triggerLocked && !sim.dryLatch &&
+      !sim.reloading && !sim.charging && sim.explode < .04 && !sim.cycle &&
+      sim.time - sim.lastShotAt > .1) {
+    if (sim.chambered) fireShot();
+    else if (!sim.boltLocked) {
+      sim.dryLatch = true;
+      dryFire();
+    }
+  }
+  sim.recoil *= Math.exp(-dt * 13);
+  sim.flashAge += dt;
+  updateEffects(dt);
+  updateCamera(dt);
+}
+
+boot();
+</script>
+</body>
+</html>
