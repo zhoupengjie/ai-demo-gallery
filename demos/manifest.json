@@ -1,6 +1,34 @@
 {
-  "generatedAt": "2026-11-03T23:06:18.601Z",
+  "generatedAt": "2026-11-08T19:52:03.526Z",
   "demos": [
+    {
+      "slug": "model-y-exploded",
+      "title": "Model Y 爆炸拆解图",
+      "summary": "程序化建模的 Model Y 三维爆炸图：分阶段拆解车身、白车身、座舱与滑板底盘，点选部件看说明，可透视看能量流。",
+      "tags": [
+        "three.js",
+        "webgl",
+        "3d",
+        "product",
+        "exploded-view",
+        "cdn"
+      ],
+      "status": "stable",
+      "agent": "claude-code / claude-opus-5-5",
+      "effort": "xhigh",
+      "prompt": "请用单文件 HTML（内联 CSS/JS，CDN 引入 Three.js）制作「特斯拉 Model Y 爆炸拆解图」交互展示页",
+      "notes": "按用户要求 three.js 0.184 走 jsDelivr CDN（import map），没有放 vendor/，所以离线打不开，这一点与 README 的约定不同；CDN 不可达时页面会给出提示。尺寸取自公开参数（4797 × 1920 × 1624 mm，轴距 2890 mm，轮距 1636 mm，255/45 R19，Cd 0.22，长续航 78.4 kWh / CLTC 719 km）。车身用一张解析曲面放样，各覆盖件从同一曲面上按 (x, t) 区域切出，因此装配时缝隙对齐、拆开后带翻边厚度；内部结构、压铸件加强筋、电芯数量与排布、线束走向均为示意。拆解分三段：覆盖件外移 → 车身与座舱抬升 → 底盘外展。未使用任何商标或徽标。URL hash 可直达状态，如 #p=1&view=side&color=blue&xray&flow=charge&sel=pack&t=8（t 为快进秒数，便于截图）。",
+      "interactive": true,
+      "createdAt": "2026-11-08",
+      "poster": "poster.jpg",
+      "entry": "demos/model-y-exploded/index.html",
+      "files": [
+        "demo.json",
+        "index.html",
+        "poster.jpg"
+      ],
+      "bytes": 104534
+    },
     {
       "slug": "blade16-2026",
       "title": "Blade 16 (2026) 3D",

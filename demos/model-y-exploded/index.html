@@ -1,0 +1,1701 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Y 爆炸拆解图</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #e9ecf0;
+    --ink: #12161c;
+    --ink2: #2a3039;
+    --muted: #5d6672;
+    --faint: #98a0ab;
+    --line: rgba(18, 22, 28, .08);
+    --line2: rgba(18, 22, 28, .14);
+    --panel: rgba(255, 255, 255, .74);
+    --accent: #2f6bff;
+    --accent-soft: rgba(47, 107, 255, .1);
+    --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 10px 30px rgba(16, 24, 40, .08);
+    --font: "Segoe UI Variable Display", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+  button { font: inherit; color: inherit; }
+  kbd { font: 600 9px/1 var(--mono); color: var(--faint); border: 1px solid var(--line2); border-radius: 3px; padding: 2px 3px; margin-right: 6px; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); }
+
+  .brand { position: fixed; left: 28px; top: 24px; z-index: 3; pointer-events: none; }
+  .eyebrow { display: flex; align-items: center; gap: 8px; font: 700 11px/1 var(--font); letter-spacing: .2em; color: var(--accent); }
+  .eyebrow::before { content: ""; width: 16px; height: 2px; border-radius: 2px; background: var(--accent); }
+  .brand h1 { margin: 10px 0 0; font: 700 54px/0.95 var(--font); letter-spacing: -.025em; }
+  .brand .sub { margin: 9px 0 0; font: 500 13px/1.4 var(--font); color: var(--muted); }
+  .stats { display: flex; gap: 22px; margin-top: 16px; }
+  .stats b { display: block; font: 650 22px/1 var(--font); letter-spacing: -.01em; }
+  .stats span { display: block; margin-top: 5px; font: 500 10px/1.2 var(--font); letter-spacing: .08em; color: var(--muted); }
+
+  .tree { position: fixed; left: 24px; top: 212px; z-index: 3; width: 252px; max-height: calc(100vh - 212px - 104px); overflow: auto; padding: 12px 10px 10px; scrollbar-width: thin; }
+  .tree h2 { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 6px 8px; font: 700 12px/1 var(--font); letter-spacing: .14em; }
+  .tree h2 span { font: 500 11px/1 var(--font); letter-spacing: 0; color: var(--faint); }
+  .cat { border-radius: 8px; }
+  .cat + .cat { margin-top: 2px; }
+  .cat-head { display: flex; align-items: center; gap: 2px; }
+  .cat-row { flex: 1; display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; cursor: pointer; text-align: left; font: 600 13px/1 var(--font); }
+  .cat-row:hover { background: rgba(18, 22, 28, .05); }
+  .cat-row i { width: 9px; height: 9px; border-radius: 3px; background: var(--c); flex: none; }
+  .cat-row em { margin-left: auto; font: 500 11px/1 var(--mono); font-style: normal; color: var(--faint); }
+  .cat-row .chev { width: 10px; height: 10px; flex: none; color: var(--faint); transition: transform .2s; }
+  .cat.open .chev { transform: rotate(90deg); }
+  .eye { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; }
+  .eye:hover { background: rgba(18, 22, 28, .06); color: var(--ink); }
+  .eye svg { width: 16px; height: 16px; }
+  .eye .off { display: none; }
+  .cat.hidden .eye .on { display: none; }
+  .cat.hidden .eye .off { display: block; }
+  .cat.hidden .cat-row { color: var(--faint); }
+  .cat.hidden .cat-row i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--c); }
+  .parts { display: none; margin: 2px 0 6px 26px; padding: 0; list-style: none; }
+  .cat.open .parts { display: block; }
+  .parts button { display: flex; width: 100%; align-items: baseline; gap: 6px; padding: 6px 8px; border: 0; border-radius: 6px; background: transparent; text-align: left; cursor: pointer; font: 500 12.5px/1.25 var(--font); color: var(--ink2); }
+  .parts button small { font: 400 10.5px/1 var(--font); color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .parts button:hover { background: rgba(18, 22, 28, .05); }
+  .parts button.sel { background: var(--accent-soft); color: var(--accent); }
+  .tree .src { margin: 10px 6px 2px; font: 400 10.5px/1.5 var(--font); color: var(--faint); }
+  .tree-toggle { display: none; }
+
+  .toolbar { position: fixed; right: 24px; top: 24px; z-index: 4; display: flex; align-items: center; gap: 10px; padding: 6px; }
+  .views { display: flex; gap: 2px; }
+  .views button, .dock button { display: inline-flex; align-items: center; height: 32px; padding: 0 11px; border: 1px solid transparent; border-radius: 8px; background: transparent; font: 600 12.5px/1 var(--font); color: var(--ink2); cursor: pointer; white-space: nowrap; transition: background .15s, color .15s, border-color .15s; }
+  .views button:hover, .dock button:hover { background: rgba(18, 22, 28, .05); }
+  .views button.on, .dock button.on { color: var(--accent); background: var(--accent-soft); border-color: rgba(47, 107, 255, .22); }
+  .dock button.on kbd { color: var(--accent); border-color: rgba(47, 107, 255, .35); }
+  .views button:focus-visible, .dock button:focus-visible, .sw:focus-visible, .cat-row:focus-visible, .eye:focus-visible, .parts button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .swatches { display: flex; gap: 6px; padding: 0 6px 0 10px; border-left: 1px solid var(--line); }
+  .sw { width: 22px; height: 22px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; background: var(--c); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .14), inset 0 -6px 8px rgba(0, 0, 0, .14), inset 0 5px 6px rgba(255, 255, 255, .28); transition: transform .15s, box-shadow .15s; }
+  .sw:hover { transform: scale(1.08); }
+  .sw.on { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--ink), inset 0 -6px 8px rgba(0, 0, 0, .14), inset 0 5px 6px rgba(255, 255, 255, .28); }
+
+  .card { position: fixed; right: 24px; top: 84px; z-index: 4; width: 312px; padding: 18px 18px 16px; }
+  .card[hidden] { display: none; }
+  .card .kind { display: flex; align-items: center; gap: 7px; font: 700 10.5px/1 var(--font); letter-spacing: .16em; color: var(--c); }
+  .card .kind i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
+  .card h3 { margin: 10px 30px 2px 0; font: 700 20px/1.25 var(--font); letter-spacing: -.01em; }
+  .card .en { font: 500 11.5px/1.3 var(--font); color: var(--faint); letter-spacing: .02em; }
+  .card ul { margin: 12px 0 0; padding: 0; list-style: none; }
+  .card li { position: relative; padding: 8px 0 8px 14px; border-top: 1px solid var(--line); font: 500 12.5px/1.5 var(--font); color: var(--ink2); }
+  .card li::before { content: ""; position: absolute; left: 1px; top: 15px; width: 5px; height: 5px; border-radius: 50%; background: var(--c); }
+  .card .note { margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--line2); font: 400 11px/1.55 var(--font); color: var(--muted); }
+  .card .note:empty { display: none; }
+  .card .acts { display: flex; gap: 8px; margin-top: 14px; }
+  .card .acts button { flex: 1; height: 32px; border: 1px solid var(--line2); border-radius: 8px; background: #fff; font: 600 12.5px/1 var(--font); cursor: pointer; }
+  .card .acts button:hover { border-color: var(--accent); color: var(--accent); }
+  .card .acts button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .card .x { position: absolute; right: 10px; top: 10px; width: 28px; height: 28px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; }
+  .card .x:hover { background: rgba(18, 22, 28, .06); color: var(--ink); }
+
+  .dock { position: fixed; left: 50%; bottom: 22px; z-index: 4; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 6px; }
+  .seg { display: flex; align-items: center; gap: 2px; }
+  .seg + .seg { margin-left: 4px; padding-left: 6px; border-left: 1px solid var(--line); }
+  .seg[hidden] { display: none; }
+  #playBtn { gap: 7px; min-width: 84px; justify-content: center; background: var(--ink); color: #fff; }
+  #playBtn:hover { background: #2a3140; }
+  #playBtn svg { width: 12px; height: 12px; }
+  .dock input[type=range] { -webkit-appearance: none; appearance: none; width: 150px; height: 4px; margin: 0 10px; background: linear-gradient(90deg, var(--accent) var(--p, 0%), rgba(18, 22, 28, .12) var(--p, 0%)); border-radius: 4px; outline: none; cursor: pointer; }
+  .dock input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-shadow: 0 1px 4px rgba(16, 24, 40, .2); }
+  .dock input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); }
+  .dock input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
+  #pct { min-width: 38px; font: 600 12px/1 var(--mono); color: var(--muted); text-align: right; padding-right: 6px; }
+  .flowinfo { padding: 0 8px 0 6px; font: 500 11.5px/1.2 var(--font); color: var(--muted); white-space: nowrap; }
+  .flowinfo b { color: var(--ink); font-weight: 650; }
+
+  .hint { position: fixed; left: 50%; bottom: 78px; z-index: 3; transform: translateX(-50%); font: 500 11px/1.6 var(--font); color: var(--faint); pointer-events: none; white-space: nowrap; }
+  .hint b { color: var(--muted); font-weight: 600; }
+
+  #labels { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+  #labels svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  #labels line { stroke: rgba(30, 38, 50, .55); stroke-width: 1; }
+  #labels circle { fill: #fff; stroke: rgba(30, 38, 50, .75); stroke-width: 1.5; }
+  .lbl { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px 0 8px; background: rgba(255, 255, 255, .92); border: 1px solid var(--line2); border-radius: 13px; font: 600 12px/1 var(--font); white-space: nowrap; pointer-events: auto; cursor: pointer; will-change: transform; box-shadow: 0 2px 8px rgba(16, 24, 40, .08); }
+  .lbl i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+  .lbl:hover, .lbl.active { border-color: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent); }
+
+  .tip { position: fixed; z-index: 5; left: 0; top: 0; padding: 6px 10px; background: rgba(18, 22, 28, .9); color: #fff; border-radius: 7px; font: 600 12px/1.2 var(--font); pointer-events: none; opacity: 0; transition: opacity .12s; white-space: nowrap; }
+  .tip small { display: block; margin-top: 3px; font: 500 10.5px/1 var(--font); color: rgba(255, 255, 255, .6); }
+  .tip.show { opacity: 1; }
+
+  .boot { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; align-content: center; gap: 14px; background: var(--bg); transition: opacity .6s; }
+  .boot.done { opacity: 0; pointer-events: none; }
+  .boot p { margin: 0; font: 500 13px/1.6 var(--font); color: var(--muted); text-align: center; padding: 0 24px; }
+  .boot .spin { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid rgba(18, 22, 28, .1); border-top-color: var(--accent); animation: spin .9s linear infinite; }
+  .boot.err .spin { display: none; }
+  .boot.err p { color: #b42318; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 1180px) {
+    .brand h1 { font-size: 44px; }
+    .stats { gap: 16px; }
+    .stats b { font-size: 19px; }
+    .tree { top: 196px; max-height: calc(100vh - 196px - 104px); }
+    .views button { padding: 0 8px; }
+  }
+  @media (max-width: 860px) {
+    .brand { left: 16px; top: 14px; }
+    .brand h1 { font-size: 32px; margin-top: 6px; }
+    .brand .sub { font-size: 11px; margin-top: 5px; }
+    .stats { margin-top: 10px; gap: 12px; }
+    .stats b { font-size: 15px; }
+    .stats span { font-size: 9px; }
+    .eyebrow { font-size: 9.5px; }
+    .toolbar { right: 12px; top: 12px; flex-direction: column; align-items: flex-end; padding: 5px; gap: 6px; }
+    .views { display: none; }
+    .swatches { border-left: 0; padding: 0; flex-direction: column; }
+    .tree-toggle { display: inline-flex; position: fixed; left: 16px; top: 150px; z-index: 4; height: 30px; align-items: center; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line2); background: var(--panel); font: 700 11px/1 var(--font); letter-spacing: .1em; cursor: pointer; }
+    .tree { display: none; left: 12px; right: 12px; top: 188px; width: auto; max-height: 48vh; }
+    .tree.open { display: block; }
+    .card { left: 12px; right: 12px; top: auto; bottom: 128px; width: auto; max-height: 44vh; overflow: auto; }
+    .dock { left: 12px; right: 12px; bottom: 12px; transform: none; flex-wrap: wrap; justify-content: center; row-gap: 6px; }
+    .dock input[type=range] { width: 110px; }
+    .dock kbd, .flowinfo { display: none; }
+    .seg + .seg { margin-left: 2px; padding-left: 2px; border-left: 0; }
+    .dock button { padding: 0 9px; }
+    .hint { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .boot .spin { animation-duration: 3s; }
+  }
+</style>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.min.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+    }
+  }
+</script>
+</head>
+<body>
+<canvas id="gl" tabindex="0" aria-label="Model Y 三维爆炸拆解模型"></canvas>
+<div id="labels"><svg id="leaders"></svg></div>
+<div class="tip" id="tip"></div>
+<div class="boot" id="boot"><div class="spin"></div><p>正在从 CDN 加载 three.js 并生成模型…</p></div>
+
+<header class="brand">
+  <div class="eyebrow">EXPLODED VIEW · 交互拆解</div>
+  <h1>Model Y</h1>
+  <p class="sub">焕新版 · 长续航全轮驱动 · 概念拆解可视化</p>
+  <div class="stats">
+    <div><b>4797</b><span>车长 mm</span></div>
+    <div><b>2890</b><span>轴距 mm</span></div>
+    <div><b>0.22</b><span>风阻 Cd</span></div>
+    <div><b>719</b><span>CLTC km</span></div>
+  </div>
+</header>
+
+<button class="tree-toggle" id="treeToggle">部件</button>
+<aside class="panel tree" id="tree" aria-label="部件结构">
+  <h2>部件结构<span id="partCount"></span></h2>
+  <div id="treeBody"></div>
+  <p class="src">非官方模型：外形按公开尺寸程序化近似，内部结构、电芯排布与走线均为示意。</p>
+</aside>
+
+<div class="panel toolbar">
+  <div class="views" id="views">
+    <button data-view="hero" class="on" title="前 45° (1)">前 45°</button>
+    <button data-view="side" title="侧视 (2)">侧视</button>
+    <button data-view="top" title="俯视 (3)">俯视</button>
+    <button data-view="rear" title="后 45° (4)">后 45°</button>
+  </div>
+  <div class="swatches" id="swatches" aria-label="车漆颜色"></div>
+</div>
+
+<aside class="panel card" id="card" hidden aria-live="polite">
+  <button class="x" id="cardClose" aria-label="关闭">×</button>
+  <div class="kind"><i></i><span id="cardKind"></span></div>
+  <h3 id="cardName"></h3>
+  <div class="en" id="cardEn"></div>
+  <ul id="cardSpecs"></ul>
+  <p class="note" id="cardNote"></p>
+  <div class="acts"><button id="cardFocus">聚焦</button><button id="cardIso">只看它</button></div>
+</aside>
+
+<nav class="panel dock" aria-label="演示控制">
+  <div class="seg">
+    <button id="playBtn" title="拆解 / 复原 (E)"><svg viewBox="0 0 12 12" aria-hidden="true"><path id="playIco" fill="currentColor" d="M2 1.2v9.6L10.4 6z"/></svg><span id="playTxt">拆解</span></button>
+    <input id="explode" type="range" min="0" max="1000" value="0" aria-label="拆解程度">
+    <output id="pct">0%</output>
+  </div>
+  <div class="seg">
+    <button data-act="xray" title="透视车身 (X)"><kbd>X</kbd>透视</button>
+    <button data-act="labels" class="on" title="部件标注 (L)"><kbd>L</kbd>标注</button>
+    <button data-act="flow" title="能量流 (F)"><kbd>F</kbd>能量流</button>
+  </div>
+  <div class="seg" id="flowSeg" hidden>
+    <button data-flow="drive" class="on">驱动</button>
+    <button data-flow="regen">回收</button>
+    <button data-flow="charge">充电</button>
+    <span class="flowinfo" id="flowInfo"></span>
+  </div>
+</nav>
+
+<div class="hint"><b>拖拽</b>旋转 · <b>滚轮</b>缩放 · <b>右键</b>平移 · <b>点击部件</b>查看说明 · <b>Esc</b> 取消选择 · <b>R</b> 复位</div>
+
+<script type="module">
+const $ = (s, r = document) => r.querySelector(s);
+const bootEl = $('#boot');
+
+// ---------------------------------------------------------------------------
+// three.js from CDN (import map above). Dynamic import so a blocked CDN shows a
+// readable message instead of a blank page.
+// ---------------------------------------------------------------------------
+let THREE, OrbitControls, RoomEnvironment, RoundedBoxGeometry, mergeGeometries;
+try {
+  const [three, oc, re, rb, bgu] = await Promise.all([
+    import('three'),
+    import('three/addons/controls/OrbitControls.js'),
+    import('three/addons/environments/RoomEnvironment.js'),
+    import('three/addons/geometries/RoundedBoxGeometry.js'),
+    import('three/addons/utils/BufferGeometryUtils.js'),
+  ]);
+  THREE = three; OrbitControls = oc.OrbitControls; RoomEnvironment = re.RoomEnvironment;
+  RoundedBoxGeometry = rb.RoundedBoxGeometry; mergeGeometries = bgu.mergeGeometries;
+} catch (err) {
+  bootEl.classList.add('err');
+  bootEl.querySelector('p').textContent = 'three.js 加载失败：请确认网络可以访问 cdn.jsdelivr.net 后刷新页面。';
+  throw err;
+}
+const V3 = THREE.Vector3;
+const T_BUILD = performance.now();
+
+// ---------------------------------------------------------------------------
+// math
+// ---------------------------------------------------------------------------
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const clamp01 = (v) => clamp(v, 0, 1);
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth = (e0, e1, x) => { const t = clamp01((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const damp = (a, b, k, dt) => lerp(a, b, 1 - Math.exp(-k * dt));
+const linspace = (a, b, n) => { const r = new Array(n); for (let i = 0; i < n; i++) r[i] = n === 1 ? a : a + (b - a) * (i / (n - 1)); return r; };
+
+// Monotone cubic (Fritsch–Carlson) so profile curves never overshoot.
+function pchip(pts) {
+  const n = pts.length, xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const h = [], d = [], m = new Array(n);
+  for (let i = 0; i < n - 1; i++) { h[i] = xs[i + 1] - xs[i]; d[i] = (ys[i + 1] - ys[i]) / h[i]; }
+  m[0] = d[0]; m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    if (d[i - 1] * d[i] <= 0) m[i] = 0;
+    else { const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1]; m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]); }
+  }
+  return (x) => {
+    if (x <= xs[0]) return ys[0];
+    if (x >= xs[n - 1]) return ys[n - 1];
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (xs[mid] > x) hi = mid; else lo = mid; }
+    const t = (x - xs[lo]) / h[lo], t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * ys[lo] + (t3 - 2 * t2 + t) * h[lo] * m[lo] + (-2 * t3 + 3 * t2) * ys[lo + 1] + (t3 - t2) * h[lo] * m[lo + 1];
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Dimensions (m). Public figures: 4797 × 1920 × 1624 mm, wheelbase 2890 mm,
+// track 1636 mm, 255/45 R19 tyres. +x = front, +y = up, +z = right side.
+// ---------------------------------------------------------------------------
+const CAR_L = 4.797, WB = 2.890, TRACK = 1.636;
+const XN = CAR_L / 2, XT = -CAR_L / 2;
+const XFA = XN - 0.925, XRA = XFA - WB;
+const TIRE_R = 0.356, WY = 0.352, HT = TRACK / 2;
+const ARCH_R = 0.405;
+const RF = 0.62, NF = 2.4, RR = 0.44, NR = 2.8;   // plan-view corner rounding, front / rear
+const T1 = 0.5, T2 = 0.54;                        // cross-section: dome | ledge | lower side
+
+// Side-profile and section curves, all sampled along x (rear → front).
+const P = {
+  top: pchip([[-2.3985, 1.085], [-2.30, 1.105], [-2.20, 1.13], [-2.10, 1.17], [-1.85, 1.30], [-1.55, 1.43], [-1.20, 1.545], [-0.85, 1.605], [-0.50, 1.624], [-0.20, 1.618], [0.05, 1.595], [0.25, 1.535], [0.42, 1.44], [0.60, 1.30], [0.80, 1.145], [0.95, 1.03], [1.00, 0.99], [1.05, 0.975], [1.20, 0.952], [1.50, 0.905], [1.90, 0.852], [2.20, 0.80], [2.32, 0.755], [2.3985, 0.70]]),
+  sh: pchip([[-2.3985, 1.055], [-2.25, 1.06], [-2.0, 1.055], [-1.6, 1.045], [-1.2, 1.035], [-0.6, 1.012], [0.0, 0.99], [0.6, 0.955], [0.95, 0.915], [1.15, 0.86], [1.4, 0.80], [1.7, 0.765], [2.0, 0.72], [2.25, 0.665], [2.3985, 0.60]]),
+  ws: pchip([[-2.3985, 0.935], [-1.9, 0.955], [-1.4, 0.958], [-0.9, 0.952], [-0.2, 0.946], [0.5, 0.945], [1.0, 0.948], [1.5, 0.952], [2.0, 0.945], [2.3985, 0.93]]),
+  sill: pchip([[-2.3985, 0.42], [-2.25, 0.36], [-2.0, 0.31], [-1.7, 0.28], [-1.0, 0.225], [0.0, 0.215], [1.0, 0.225], [1.7, 0.27], [2.0, 0.29], [2.25, 0.32], [2.3985, 0.38]]),
+  tuck: pchip([[-2.3985, 0.92], [-1.8, 0.93], [-1.0, 0.92], [0.0, 0.915], [1.0, 0.92], [1.8, 0.93], [2.3985, 0.92]]),
+  ledge: pchip([[-2.3985, 0.02], [-2.1, 0.035], [-1.6, 0.055], [-1.0, 0.062], [0.5, 0.062], [0.85, 0.05], [1.05, 0.015], [1.2, 0.0], [2.3985, 0.0]]),
+  rise: pchip([[-2.3985, 0.015], [-1.0, 0.022], [0.6, 0.022], [1.1, 0.012], [2.3985, 0.012]]),
+  pz: pchip([[-2.3985, 3.2], [-2.0, 3.6], [-1.4, 4.0], [0.95, 4.0], [1.15, 6.2], [2.3985, 6.5]]),
+  qy: pchip([[-2.3985, 2.6], [-2.0, 3.0], [-1.4, 4.0], [0.2, 4.0], [0.95, 3.6], [1.15, 2.1], [2.3985, 2.0]]),
+  tilt: pchip([[-2.3985, 0.12], [-2.0, 0.22], [-1.4, 0.33], [0.3, 0.35], [0.7, 0.25], [1.0, 0.06], [1.15, 0.0], [2.3985, 0.0]]),
+};
+
+function planF(x) {
+  if (x > XN - RF) { const d = Math.min(1, (x - (XN - RF)) / RF); return Math.pow(Math.max(0, 1 - Math.pow(d, NF)), 1 / NF); }
+  if (x < XT + RR) { const d = Math.min(1, (XT + RR - x) / RR); return Math.pow(Math.max(0, 1 - Math.pow(d, NR)), 1 / NR); }
+  return 1;
+}
+
+// Half cross-section at station x. t ∈ [0,1]: 0 = roof centre, T1 = beltline,
+// T2 = shoulder, 1 = sill. Writes [y, |z|] into SEC.
+const SEC = [0, 0];
+function section(x, t) {
+  const f = planF(x);
+  const yt = P.top(x), ys = P.sh(x), ysl = P.sill(x);
+  const ws = P.ws(x) * f, wg = ws - P.ledge(x) * f, yg = ys + P.rise(x);
+  if (t <= T1) {
+    const th = (1 - t / T1) * Math.PI / 2;
+    const c = Math.pow(Math.max(0, Math.cos(th)), 2 / P.pz(x));
+    const s = Math.pow(Math.max(0, Math.sin(th)), 2 / P.qy(x));
+    const y = yg + (yt - yg) * s;
+    SEC[0] = y; SEC[1] = c * (wg - f * P.tilt(x) * (y - yg));
+  } else if (t <= T2) {
+    const k = (t - T1) / (T2 - T1), a = (1 - k) * (1 - k), b = 2 * k * (1 - k), cc = k * k;
+    SEC[0] = (a + b) * yg + cc * ys; SEC[1] = a * wg + (b + cc) * ws;
+  } else {
+    const q = (t - T2) / (1 - T2);
+    SEC[0] = ys + (ysl - ys) * q;
+    SEC[1] = ws * (1 - (1 - P.tuck(x)) * Math.pow(q, 2.6));
+  }
+  return SEC;
+}
+
+// Wheel openings: points of the lower side that fall inside the inverted-U arch
+// are pushed onto its edge along rays from a point far below the wheel. The map
+// is continuous, so the cut-out has a clean edge without trimming triangles.
+const ARCHES = [XFA, XRA];
+const ARCH_P = [0, 0];
+function archProject(x, y) {
+  ARCH_P[0] = x; ARCH_P[1] = y;
+  for (const xc of ARCHES) {
+    const dx = x - xc, dy = y - WY;
+    if (Math.abs(dx) >= ARCH_R) continue;
+    if (dy >= 0 && dx * dx + dy * dy >= ARCH_R * ARCH_R) continue;
+    const cy = -1.2, ddx = dx, ddy = y - cy;            // ray from (xc, cy) through the point
+    const oy = cy - WY;                                 // origin relative to arch centre
+    const A = ddx * ddx + ddy * ddy, B = 2 * oy * ddy, C = oy * oy - ARCH_R * ARCH_R;
+    const s = (-B + Math.sqrt(Math.max(0, B * B - 4 * A * C))) / (2 * A);
+    let px = xc + ddx * s, py = cy + ddy * s;
+    if (py < WY) { const s2 = ARCH_R / Math.max(1e-9, Math.abs(ddx)); px = xc + Math.sign(ddx || 1) * ARCH_R; py = cy + ddy * s2; }
+    ARCH_P[0] = px; ARCH_P[1] = py;
+    return;
+  }
+}
+
+// Surface point. Signed t: negative = left side (−z).
+function body(x, t, arch, out) {
+  const ta = Math.abs(t), sg = t < 0 ? -1 : 1;
+  x = clamp(x, XT, XN);
+  section(x, ta);
+  let y = SEC[0];
+  const z = SEC[1] * sg;
+  if (arch && ta > T2) { archProject(x, y); x = ARCH_P[0]; y = ARCH_P[1]; }
+  const wf = smooth(XN - 0.55, XN, x), wr = smooth(XT + 0.55, XT, x);
+  if (wf > 0) { const k = (y - 0.47) / 0.32; x -= wf * Math.min(0.16, 0.12 * k * k); }
+  if (wr > 0) { const k = (y - 0.66) / 0.42; x += wr * Math.min(0.12, 0.075 * k * k); }
+  return out.set(x, y, z);
+}
+
+const _a = new V3(), _b = new V3(), _dx = new V3(), _dt = new V3(), _p = new V3(), _n = new V3();
+// Analytic normal from finite differences of the un-cut surface. t-differences
+// are clamped to the piece's own range so creases (beltline) stay sharp.
+function bodyN(x, t, tLo, tHi, out) {
+  const ex = 0.0015, et = 0.0012;
+  const xa = Math.max(XT, x - ex), xb = Math.min(XN, x + ex);
+  let ta = Math.max(tLo, t - et), tb = Math.min(tHi, t + et);
+  if (tb - ta < 1e-7) { ta = t - et; tb = t + et; }
+  body(xb, t, false, _a); body(xa, t, false, _b); _dx.subVectors(_a, _b);
+  body(x, tb, false, _a); body(x, ta, false, _b); _dt.subVectors(_a, _b);
+  out.crossVectors(_dt, _dx);
+  if (out.lengthSq() < 1e-24) out.set(Math.sign(x) || 1, 0, 0);
+  return out.normalize();
+}
+
+// x is sampled in a warped space that is denser at the nose, tail and arches.
+const UN = 4096, UX = new Float64Array(UN + 1), UU = new Float64Array(UN + 1);
+{
+  const rho = (x) => 1 + 7 * Math.exp(-(((XN - x) / 0.1) ** 2)) + 7 * Math.exp(-(((x - XT) / 0.09) ** 2)) + 1.2 * Math.exp(-(((x - XFA) / 0.5) ** 2)) + 1.2 * Math.exp(-(((x - XRA) / 0.5) ** 2));
+  let acc = 0; UX[0] = XT; UU[0] = 0;
+  for (let i = 1; i <= UN; i++) { const x0 = XT + CAR_L * (i - 1) / UN, x1 = XT + CAR_L * i / UN; acc += (rho(x0) + rho(x1)) / 2 * (x1 - x0); UX[i] = x1; UU[i] = acc; }
+}
+function uOf(x) { const f = clamp01((x - XT) / CAR_L) * UN; const i = Math.min(UN - 1, Math.floor(f)); return lerp(UU[i], UU[i + 1], f - i); }
+function xOf(u) {
+  let lo = 0, hi = UN;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (UU[m] > u) hi = m; else lo = m; }
+  return lerp(UX[lo], UX[hi], clamp01((u - UU[lo]) / (UU[hi] - UU[lo] || 1)));
+}
+const DT = 0.0095, DU = 0.026;
+const xCount = (a, b) => Math.max(2, Math.ceil(Math.abs(uOf(b) - uOf(a)) / DU) + 1);
+const tCount = (a, b) => Math.max(2, Math.ceil(Math.abs(b - a) / DT) + 1);
+const xSamples = (a, b, n) => linspace(uOf(a), uOf(b), n).map(xOf);
+
+// x on the nose/tail rounding where the half-width equals z, for row t.
+function xAtZ(z, t, front) {
+  let a = front ? XN - RF : XT + RR, b = front ? XN - 1e-5 : XT + 1e-5;
+  if (section(a, t)[1] <= z) return a;
+  for (let i = 0; i < 40; i++) { const m = (a + b) / 2; if (section(m, t)[1] > z) a = m; else b = m; }
+  return (a + b) / 2;
+}
+// t on the dome where the half-width equals z, at station x.
+const tzCache = new Map();
+function tAtZ(x, z) {
+  const key = Math.round(x * 4000) * 4096 + Math.round(z * 4000);
+  const hit = tzCache.get(key); if (hit !== undefined) return hit;
+  let a = 0, b = T1;
+  for (let i = 0; i < 34; i++) { const m = (a + b) / 2; if (section(x, m)[1] < z) a = m; else b = m; }
+  const r = (a + b) / 2; tzCache.set(key, r); return r;
+}
+
+// ---------------------------------------------------------------------------
+// Surface pieces: a grid over the (x, t) chart. mode 't' = rows of constant t,
+// each spanning range(t) in x; mode 'x' = columns of constant x spanning range(x) in t.
+// ---------------------------------------------------------------------------
+function gridPiece(mode, p0, p1, range, off) {
+  const prim = mode === 't' ? linspace(p0, p1, tCount(p0, p1)) : xSamples(p0, p1, xCount(p0, p1));
+  const nr = prim.length, rows = prim.map(range);
+  let ns = 2;
+  for (const [a, b] of rows) ns = Math.max(ns, mode === 't' ? xCount(a, b) : tCount(a, b));
+  ns = Math.min(ns, 360);
+  const pos = new Float32Array(nr * ns * 3), nor = new Float32Array(nr * ns * 3);
+  for (let i = 0; i < nr; i++) {
+    const p = prim[i], [a, b] = rows[i];
+    const sec = mode === 't' ? xSamples(a, b, ns) : linspace(a, b, ns);
+    const tLo = mode === 't' ? Math.min(p0, p1) : Math.min(a, b), tHi = mode === 't' ? Math.max(p0, p1) : Math.max(a, b);
+    for (let j = 0; j < ns; j++) {
+      const x = mode === 't' ? sec[j] : p, t = mode === 't' ? p : sec[j];
+      body(x, t, true, _p); bodyN(x, t, tLo, tHi, _n);
+      if (off) _p.addScaledVector(_n, off);
+      const k = (i * ns + j) * 3;
+      pos[k] = _p.x; pos[k + 1] = _p.y; pos[k + 2] = _p.z;
+      nor[k] = _n.x; nor[k + 1] = _n.y; nor[k + 2] = _n.z;
+    }
+  }
+  const idx = [];
+  for (let i = 0; i < nr - 1; i++) for (let j = 0; j < ns - 1; j++) { const a = i * ns + j, b = a + 1, c = a + ns, d = c + 1; idx.push(a, c, b, b, c, d); }
+  let flip = false;
+  for (let q = 0; q < idx.length; q += 3) {
+    const ia = idx[q] * 3, ib = idx[q + 1] * 3, ic = idx[q + 2] * 3;
+    const ux = pos[ib] - pos[ia], uy = pos[ib + 1] - pos[ia + 1], uz = pos[ib + 2] - pos[ia + 2];
+    const vx = pos[ic] - pos[ia], vy = pos[ic + 1] - pos[ia + 1], vz = pos[ic + 2] - pos[ia + 2];
+    const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+    if (cx * cx + cy * cy + cz * cz < 1e-14) continue;
+    flip = cx * nor[ia] + cy * nor[ia + 1] + cz * nor[ia + 2] < 0; break;
+  }
+  if (flip) for (let q = 0; q < idx.length; q += 3) { const t = idx[q + 1]; idx[q + 1] = idx[q + 2]; idx[q + 2] = t; }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  geo.setIndex(idx);
+  geo.computeBoundingSphere();
+  return { geo, nr, ns, pos, nor };
+}
+
+// Rolled edge: the piece's outline pushed inward, so panels read as pressed
+// sheet with a hem rather than paper-thin shells.
+function rimGeo(g, depth) {
+  const { nr, ns, pos, nor } = g, loop = [];
+  for (let j = 0; j < ns; j++) loop.push(j);
+  for (let i = 1; i < nr; i++) loop.push(i * ns + ns - 1);
+  for (let j = ns - 2; j >= 0; j--) loop.push((nr - 1) * ns + j);
+  for (let i = nr - 2; i >= 1; i--) loop.push(i * ns);
+  loop.push(loop[0]);
+  const n = loop.length, P2 = new Float32Array(n * 6), idx = [];
+  for (let m = 0; m < n; m++) {
+    const v = loop[m] * 3;
+    for (let c = 0; c < 3; c++) { P2[m * 6 + c] = pos[v + c]; P2[m * 6 + 3 + c] = pos[v + c] - nor[v + c] * depth; }
+    if (m < n - 1) { const a = m * 2, b = a + 1, c = a + 2, d = a + 3; idx.push(a, b, c, c, b, d); }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(P2, 3));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+
+// Builds a panel (or overlay) from the chart; splits at the beltline crease.
+// side: +1 right, -1 left (mirrors the t range), 0 = spans the centreline.
+function surface(def) {
+  let { mode, p0, p1, range } = def;
+  const side = def.side || 0;
+  if (side === -1) {
+    if (mode === 't') { const a = -p1, b = -p0, r = range; p0 = a; p1 = b; range = (t) => r(-t); }
+    else { const r = range; range = (x) => { const [a, b] = r(x); return [-b, -a]; }; }
+  }
+  const grids = [];
+  if (mode === 't') {
+    const cuts = [p0];
+    for (const c of [-T1, T1]) if (c > p0 + 1e-6 && c < p1 - 1e-6) cuts.push(c);
+    cuts.push(p1);
+    for (let i = 0; i < cuts.length - 1; i++) grids.push(gridPiece('t', cuts[i], cuts[i + 1], range, def.offset));
+  } else {
+    for (const [lo, hi] of [[-1, -T1], [-T1, T1], [T1, 1]]) {
+      let any = false;
+      for (let k = 0; k <= 24 && !any; k++) { const [a, b] = range(lerp(p0, p1, k / 24)); if (Math.min(b, hi) - Math.max(a, lo) > 1e-5) any = true; }
+      if (!any) continue;
+      grids.push(gridPiece('x', p0, p1, (x) => { const [a, b] = range(x); const A = clamp(a, lo, hi), B = clamp(b, lo, hi); return A <= B ? [A, B] : [A, A]; }, def.offset));
+    }
+  }
+  const grp = new THREE.Group();
+  for (const g of grids) {
+    grp.add(new THREE.Mesh(g.geo, def.mat));
+    if (def.back) grp.add(new THREE.Mesh(g.geo, def.back));
+    if (def.rim) grp.add(new THREE.Mesh(rimGeo(g, def.rim), M.inner2));
+  }
+  return grp;
+}
+
+// ---------------------------------------------------------------------------
+// Renderer / scene
+// ---------------------------------------------------------------------------
+const canvas = $('#gl');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: location.hash.includes('poster') });
+} catch (err) {
+  bootEl.classList.add('err');
+  bootEl.querySelector('p').textContent = '此设备不支持 WebGL，无法显示 3D 模型。';
+  throw err;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const BG = new THREE.Color('#e9ecf0');
+const scene = new THREE.Scene();
+scene.background = BG;
+scene.fog = new THREE.Fog(BG, 20, 46);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.85;
+
+const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 2.2; controls.maxDistance = 32;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.autoRotateSpeed = 0.55;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb6bec9, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 2.1);
+key.position.set(3.2, 10, 2.6); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -7.5, right: 7.5, top: 7.5, bottom: -7.5, near: 1, far: 26 });
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.025; key.shadow.radius = 3;
+scene.add(key, key.target);
+const rimLight = new THREE.DirectionalLight(0xe2eaff, 0.55); rimLight.position.set(-6, 4, -5); scene.add(rimLight);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.ShadowMaterial({ color: 0x1b2433, opacity: 0.16 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(44, 88, 0xc3c9d1, 0xd5d9df);
+grid.material.transparent = true; grid.material.opacity = 0.6; grid.position.y = 0.001; scene.add(grid);
+
+function canvasTex(w, h, draw, srgb = true) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+const blob = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 3.3), new THREE.MeshBasicMaterial({
+  transparent: true, depthWrite: false, toneMapped: false,
+  map: canvasTex(256, 128, (g, w, h) => {
+    const r = g.createRadialGradient(w / 2, h / 2, 4, w / 2, h / 2, w / 2);
+    r.addColorStop(0, 'rgba(20,26,36,.42)'); r.addColorStop(0.5, 'rgba(20,26,36,.16)'); r.addColorStop(1, 'rgba(20,26,36,0)');
+    g.fillStyle = r; g.fillRect(0, 0, w, h);
+  }),
+}));
+blob.rotation.x = -Math.PI / 2; blob.position.y = 0.002; scene.add(blob);
+
+// ---------------------------------------------------------------------------
+// Materials
+// ---------------------------------------------------------------------------
+const PAINTS = [
+  { key: 'red', name: '烈焰红', css: '#a3141c', color: '#93111a', metal: 0.45, rough: 0.3 },
+  { key: 'white', name: '珍珠白', css: '#eceef0', color: '#e6e8ea', metal: 0.05, rough: 0.26 },
+  { key: 'grey', name: '星空灰', css: '#50555c', color: '#474b52', metal: 0.6, rough: 0.32 },
+  { key: 'silver', name: '水银银', css: '#aeb3b9', color: '#a3a8ae', metal: 0.85, rough: 0.28 },
+  { key: 'blue', name: '冰川蓝', css: '#7e97ad', color: '#6f889e', metal: 0.55, rough: 0.3 },
+  { key: 'black', name: '曜石黑', css: '#16171a', color: '#0f1013', metal: 0.5, rough: 0.3 },
+];
+const std = (color, roughness = 0.6, metalness = 0, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
+const M = {
+  paint: new THREE.MeshPhysicalMaterial({ color: PAINTS[0].color, metalness: PAINTS[0].metal, roughness: PAINTS[0].rough, clearcoat: 1, clearcoatRoughness: 0.04 }),
+  inner: std(0x34383e, 0.72, 0.15, { side: THREE.BackSide }),
+  inner2: std(0x24272c, 0.8, 0.1, { side: THREE.DoubleSide }),
+  trim: std(0x131518, 0.4, 0.2),
+  plastic: std(0x1b1c1f, 0.82, 0, { side: THREE.DoubleSide }),
+  glass: new THREE.MeshPhysicalMaterial({ color: 0x0b0e12, metalness: 0.1, roughness: 0.04, clearcoat: 1, clearcoatRoughness: 0.02, transparent: true, opacity: 0.84, side: THREE.DoubleSide, envMapIntensity: 1.3 }),
+  lens: new THREE.MeshPhysicalMaterial({ color: 0x15181c, metalness: 0.2, roughness: 0.05, clearcoat: 1 }),
+  lensR: new THREE.MeshPhysicalMaterial({ color: 0x3d070b, metalness: 0.1, roughness: 0.08, clearcoat: 1 }),
+  lightW: new THREE.MeshBasicMaterial({ color: 0xf3f7ff, toneMapped: false }),
+  lightR: new THREE.MeshBasicMaterial({ color: 0xff2a2a, toneMapped: false }),
+  steel: std(0x66768a, 0.45, 0.55),
+  alu: std(0xc9cdd2, 0.36, 0.92),
+  aluDark: std(0x9aa1a9, 0.5, 0.85),
+  chassis: std(0x2c3036, 0.55, 0.5),
+  rubber: std(0x17181a, 0.9, 0, { side: THREE.DoubleSide }),
+  rim: std(0x2d3035, 0.32, 0.85, { side: THREE.DoubleSide }),
+  rimFace: std(0x50555c, 0.24, 0.9),
+  disc: std(0x8c9095, 0.42, 0.9),
+  caliper: std(0x2a2d32, 0.4, 0.4),
+  orange: std(0xff7417, 0.5, 0.05),
+  copper: std(0xc77b45, 0.32, 1),
+  cell: std(0xb7bdc4, 0.3, 0.9),
+  cellTop: std(0x5c636b, 0.4, 0.8),
+  tray: std(0x3a3f46, 0.5, 0.6),
+  leather: std(0x1d1e21, 0.58, 0),
+  textile: std(0x5a5e64, 0.95, 0),
+  piano: new THREE.MeshPhysicalMaterial({ color: 0x0c0d0f, roughness: 0.15, metalness: 0.1, clearcoat: 1 }),
+  ambient: new THREE.MeshBasicMaterial({ color: 0x5ab8ff, toneMapped: false }),
+  reservoir: new THREE.MeshPhysicalMaterial({ color: 0xe8edf2, roughness: 0.35, transmission: 0, transparent: true, opacity: 0.82 }),
+  coolant: std(0x2f3a48, 0.5, 0.2),
+};
+M.paintBack = M.inner;
+M.trim.side = THREE.DoubleSide;
+
+// ---------------------------------------------------------------------------
+// Parts registry
+// ---------------------------------------------------------------------------
+const CATS = [
+  { key: 'body', name: '车身覆盖件', en: 'CLOSURES', color: '#2f6bff' },
+  { key: 'glass', name: '玻璃与灯光', en: 'GLASS & LIGHTING', color: '#0aa2b5' },
+  { key: 'biw', name: '白车身结构', en: 'BODY-IN-WHITE', color: '#7a5af5' },
+  { key: 'interior', name: '座舱内饰', en: 'INTERIOR', color: '#e08a1e' },
+  { key: 'battery', name: '动力电池', en: 'BATTERY & HV', color: '#16a34a' },
+  { key: 'chassis', name: '电驱与底盘', en: 'DRIVE & CHASSIS', color: '#e5484d' },
+  { key: 'thermal', name: '热管理', en: 'THERMAL', color: '#c026d3' },
+];
+const CAT = Object.fromEntries(CATS.map((c) => [c.key, c]));
+const PARTS = {
+  hood:      { cat: 'body', name: '前机盖', en: 'Hood / frunk lid', specs: ['覆盖前备箱，前缘与灯带上沿对缝', '外板 + 内加强板双层结构', '低矮圆润的鼻锥造型'] },
+  fasciaF:   { cat: 'body', name: '前保险杠蒙皮', en: 'Front fascia', specs: ['集成贯穿式灯带与下置大灯', '下进气口后方为前端散热器', '整车风阻系数 Cd 0.22（公开数据）'] },
+  fender:    { cat: 'body', name: '前翼子板', en: 'Front fenders', specs: ['集成侧方摄像头', '与机盖、前保险杠三方对缝', '左右各一'] },
+  doorF:     { cat: 'body', name: '前车门', en: 'Front doors', specs: ['有框车门，电子按键开门', '集成外后视镜与门窗玻璃', '左右各一'] },
+  doorR:     { cat: 'body', name: '后车门', en: 'Rear doors', specs: ['下缘后部绕开后轮拱', '有框车门，电子按键开门', '左右各一'] },
+  side:      { cat: 'body', name: '侧围外板', en: 'Body side outers', specs: ['A 柱、车顶边梁、C/D 柱与后翼子板外皮', '集成三角窗玻璃'], note: '实车中侧围与白车身焊接为一体，这里单独拆出以便看清骨架。' },
+  liftgate:  { cat: 'body', name: '电动尾门', en: 'Power liftgate', specs: ['集成后风挡玻璃与贯穿式尾灯', '鸭尾式扰流造型', '电动开启'] },
+  fasciaR:   { cat: 'body', name: '后保险杠蒙皮', en: 'Rear fascia', specs: ['下部黑色扩散器造型', '内侧为后防撞梁'] },
+  roof:      { cat: 'glass', name: '全景玻璃车顶', en: 'Panoramic glass roof', specs: ['从风挡上沿一直延伸到尾门铰链', '隔热镀膜，阻隔紫外线与红外线', '车顶中部无横向遮挡'] },
+  windshield:{ cat: 'glass', name: '前挡风玻璃', en: 'Windshield', specs: ['大倾角前风挡', '夹层声学玻璃', '下沿为导流槽'] },
+  lightsF:   { cat: 'glass', name: '前灯组', en: 'Front lighting', specs: ['贯穿式 LED 日行灯带', '下置 LED 大灯，左右各一'] },
+  lightsR:   { cat: 'glass', name: '贯穿式尾灯', en: 'Rear lighting', specs: ['横贯尾门的贯穿式灯带', '两侧尾灯组延伸至后翼子板', '左后尾灯内集成充电口'] },
+  castF:     { cat: 'biw', name: '一体压铸前舱', en: 'Front mega-casting', specs: ['大型压铸机一次成型的铝合金铸件', '集成前纵梁、减震器塔座与前围', '以单个铸件替代数十个冲压焊接件'], note: '前部压铸件的采用随工厂与年款不同；铸件形状与加强筋为示意。' },
+  castR:     { cat: 'biw', name: '一体压铸后底板', en: 'Rear mega-casting', specs: ['后纵梁、后减震塔座、后地板一体成型', '底面布满网格加强筋', '大幅减少零件与焊点数量'], note: '加强筋网格为示意，非实车拓扑。' },
+  cage:      { cat: 'biw', name: '车身安全骨架', en: 'Safety cage', specs: ['A/B/C/D 柱、车顶边梁、门槛梁', '高强度钢与铝合金混合车身', '与电池包共同围成乘员舱'] },
+  dash:      { cat: 'interior', name: '仪表台与中控屏', en: 'Dashboard & 15.4" display', specs: ['15.4 英寸悬浮式中控屏', '环抱式氛围灯带', '软质织物包覆仪表台'] },
+  steering:  { cat: 'interior', name: '方向盘', en: 'Steering wheel', specs: ['圆形方向盘', '保留转向灯拨杆，挡位在屏幕上切换'] },
+  seatsF:    { cat: 'interior', name: '前排座椅', en: 'Front seats', specs: ['电动调节', '座椅加热 + 通风'] },
+  seatsR:    { cat: 'interior', name: '后排座椅', en: 'Rear seats', specs: ['60/40 电动折叠靠背', '后排座椅加热', '五座布局'] },
+  console:   { cat: 'interior', name: '中央扶手与后排屏', en: 'Centre console', specs: ['8 英寸后排触控屏', '前排双无线充电板', '扶手下方储物空间'] },
+  pack:      { cat: 'battery', name: '电池包与电芯', en: 'Battery pack', specs: ['长续航版约 78.4 kWh（公开数据）', 'CLTC 续航 719 km', '圆柱电芯阵列 + 液冷'], note: '电芯数量、排布与模组划分为示意；不同版本、产地的电芯规格不同。' },
+  packTop:   { cat: 'battery', name: '电池包上盖', en: 'Pack lid / cabin floor', specs: ['上盖兼作座舱地板', '座椅横梁直接安装在上盖上', '提升车身扭转刚度'], note: '「电池即地板」的结构化思路仅部分版本采用，此处为示意。' },
+  harness:   { cat: 'battery', name: '高压线束与充电口', en: 'HV harness & charge port', specs: ['橙色高压线束连接电池、电驱与充电口', '充电口位于左后尾灯处'] },
+  lv:        { cat: 'battery', name: '低压锂电池', en: 'Low-voltage battery', specs: ['16 V 锂离子低压电池', '为车机、灯光等低压系统供电'] },
+  duF:       { cat: 'chassis', name: '前电驱单元', en: 'Front drive unit', specs: ['长续航全驱版前轴电机', '电机 + 减速器 + 逆变器集成', '与后电驱组成双电机全轮驱动'] },
+  duR:       { cat: 'chassis', name: '后电驱单元', en: 'Rear drive unit', specs: ['主驱动电机', '双电机综合功率 331 kW（公开数据）', '0–100 km/h 4.3 s（长续航全驱）'] },
+  wheel:     { cat: 'chassis', name: '车轮与制动', en: 'Wheels & brakes', specs: ['19 英寸轮毂 · 255/45 R19', '通风盘式制动', '四轮各一套'] },
+  suspF:     { cat: 'chassis', name: '前悬架', en: 'Front suspension', specs: ['双叉臂独立悬架', '螺旋弹簧 + 筒式减振器', '含驱动半轴'] },
+  suspR:     { cat: 'chassis', name: '后悬架', en: 'Rear suspension', specs: ['多连杆独立悬架', '螺旋弹簧 + 筒式减振器', '含驱动半轴'] },
+  subF:      { cat: 'chassis', name: '前副车架与转向机', en: 'Front subframe & steering', specs: ['电动助力转向机', '承载前电驱与下摆臂'] },
+  subR:      { cat: 'chassis', name: '后副车架', en: 'Rear subframe', specs: ['承载后电驱与多连杆', '衬套隔振'] },
+  heatpump:  { cat: 'thermal', name: '热泵与八通阀模块', en: 'Heat pump & octovalve', specs: ['集成式热泵系统', '八通阀统一调度座舱、电池与电驱的热量', '低温时可利用电驱余热'] },
+  radiator:  { cat: 'thermal', name: '前端散热器', en: 'Front radiator & fans', specs: ['位于前保险杠下进气口之后', '双电子风扇'] },
+  hvac:      { cat: 'thermal', name: '空调箱', en: 'HVAC module', specs: ['位于仪表台后方', '为座舱送风与除雾', '与热泵系统联动'] },
+};
+const SHELL = new Set(['body', 'glass']);
+const meshesByPart = new Map();
+const pickables = [];
+const pieces = [];
+// Upper body and interior lift as layers; individual pieces add their own offsets.
+const root = new THREE.Group(); scene.add(root);
+const upper = new THREE.Group(), cabin = new THREE.Group(), chassis = new THREE.Group();
+root.add(upper, cabin, chassis);
+
+function reg(obj, part) {
+  obj.traverse((o) => {
+    if (!o.isMesh || o.userData.part) return;   // sub-parts registered first keep their own key
+    o.userData.part = part;
+    o.userData.base = o.material;
+    const isLight = o.material === M.lightW || o.material === M.lightR || o.material === M.ambient;
+    o.castShadow = !isLight; o.receiveShadow = true;
+    if (!meshesByPart.has(part)) meshesByPart.set(part, []);
+    meshesByPart.get(part).push(o);
+    pickables.push(o);
+  });
+  return obj;
+}
+// A piece is something that moves in the explode: off is its displacement at full explode.
+function piece(layer, obj, off, stage = 'A', delay = 0) {
+  layer.add(obj);
+  pieces.push({ obj, base: obj.position.clone(), off: new V3(...off), stage, delay });
+  return obj;
+}
+const STAGES = { A: [0.0, 0.4], B: [0.2, 0.45], C: [0.5, 0.5] };
+
+// geometry helpers
+function mesh(geo, mat, x = 0, y = 0, z = 0) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); return m; }
+function rbox(w, h, d, x, y, z, mat, r = 0.012) { return mesh(new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2.01, h / 2.01, d / 2.01)), mat, x, y, z); }
+function box(w, h, d, x, y, z, mat) { return mesh(new THREE.BoxGeometry(w, h, d), mat, x, y, z); }
+function cylGeo(rt, rb, h, axis = 'y', seg = 24, open = false) {
+  const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1, open);
+  if (axis === 'x') g.rotateZ(Math.PI / 2); else if (axis === 'z') g.rotateX(Math.PI / 2);
+  return g;
+}
+function cyl(rt, rb, h, x, y, z, mat, axis = 'y', seg = 24, open = false) { return mesh(cylGeo(rt, rb, h, axis, seg, open), mat, x, y, z); }
+const _up = new V3(0, 1, 0);
+function rod(a, b, r, mat, seg = 10) {
+  const A = new V3(...a), B = new V3(...b), d = B.clone().sub(A), len = d.length();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg), mat);
+  m.position.copy(A).addScaledVector(d, 0.5);
+  m.quaternion.setFromUnitVectors(_up, d.normalize());
+  return m;
+}
+function tube(pts, r, mat, radial = 10, seg) {
+  const curve = new THREE.CatmullRomCurve3(pts.map((p) => (p.isVector3 ? p : new V3(...p))), false, 'centripetal');
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, seg || Math.max(16, pts.length * 10), r, radial, false), mat);
+}
+function helix(x, z, y0, y1, R, r, turns, mat) {
+  const pts = [];
+  const n = Math.round(turns * 24);
+  for (let i = 0; i <= n; i++) { const a = (i / 24) * Math.PI * 2; pts.push(new V3(x + Math.cos(a) * R, lerp(y0, y1, i / n), z + Math.sin(a) * R)); }
+  return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), n * 2, r, 6, false), mat);
+}
+const group = (...kids) => { const g = new THREE.Group(); for (const k of kids) g.add(k); return g; };
+
+// Surface line → tube following the body, inset toward the inside.
+function surfTube(pts, inset, r, mat) {
+  const v = pts.map(([x, t]) => { const p = body(x, t, false, new V3()); bodyN(x, t, -1, 1, _n); return p.addScaledVector(_n, -inset); });
+  return tube(v, r, mat, 10, v.length * 8);
+}
+const chart = (x0, t0, x1, t1, n = 10) => linspace(0, 1, n).map((k) => [lerp(x0, x1, k), lerp(t0, t1, k)]);
+
+// ---------------------------------------------------------------------------
+// Body lines in the chart (see section()).
+// ---------------------------------------------------------------------------
+const g = 0.0045, gt = 0.0028;                 // panel gap in x / in t
+const tRR = 0.25, tRail = 0.272, tRB = 0.715, tDB = 0.965;
+const xHL = 2.2, xHeader = 0.3, xRoofEnd = -1.25, xGlassEnd = -2.06, xFS = 1.93, xRFS = -1.8, xFR = 1.005, xCowlR = 1.035;
+const zH = (x) => lerp(0.72, 0.64, clamp01((x - 1.0) / (xHL - 1.0)));      // hood shut line, half-width
+const tH = (x) => tAtZ(x, zH(x));
+const zWs0 = section(xHeader, tRR)[1];
+const tWs = (x) => tAtZ(x, lerp(zWs0, 0.72, clamp01((x - xHeader) / (xFR - xHeader))));
+const xA = (t) => lerp(0.275, 0.965, clamp01((t - tRail) / (T1 - tRail)));  // front door frame front edge (A-pillar)
+const tAo = (x) => (x >= 0.965 ? T1 : lerp(tRail, T1, clamp01((x - 0.275) / (0.965 - 0.275))));
+const xB = (t) => (t >= T1 ? -0.255 : lerp(-0.235, -0.255, clamp01((t - tRail) / (T1 - tRail))));
+const xC = (t) => (t >= T1 ? -1.115 : lerp(-0.975, -1.115, clamp01((t - tRail) / (T1 - tRail))));
+const tHL = tH(xHL);
+const rampX = (t) => lerp(xHL, xFS, clamp01((t - tHL) / (0.55 - tHL)));
+const rampT = (x) => lerp(tHL, 0.55, clamp01((xHL - x) / (xHL - xFS)));
+const xFas = (t) => (t <= tHL ? xHL : t >= 0.55 ? xFS : rampX(t));
+// Liftgate side edge sits at |z| = 0.6 on the rear face. Near the tail z changes
+// fast with x, so gaps there are taken in z, not x.
+const xLc = new Map();
+const xLz = (z, t) => { const k = Math.round(Math.abs(t) * 20000) * 1000 + Math.round(z * 1000); if (!xLc.has(k)) xLc.set(k, xAtZ(z, Math.abs(t), false)); return xLc.get(k); };
+const xL = (t) => xLz(0.6, t), xLin = (t) => xLz(0.596, t), xLout = (t) => xLz(0.604, t);
+
+const paint = { mat: M.paint, back: M.inner, rim: 0.012 };
+const sideSigns = [-1, 1];   // left first, so label anchors face the hero camera
+
+// --- hood
+const hood = reg(surface({ mode: 'x', p0: xCowlR, p1: xHL, range: (x) => [-(tH(x) - gt), tH(x) - gt], ...paint }), 'hood');
+piece(upper, hood, [0.45, 0.72, 0], 'A', 0.0);
+
+// --- front fascia + lights
+const fasciaF = surface({ mode: 't', p0: -1, p1: 1, range: (t) => [xFas(Math.abs(t)) + g, XN], ...paint });
+const lightsF = group(
+  surface({ mode: 'x', p0: xHL + 0.007, p1: xHL + 0.017, range: () => [-(tHL + 0.07), tHL + 0.07], mat: M.lightW, offset: 0.0012 }),
+);
+for (const s of sideSigns) {
+  lightsF.add(surface({ mode: 't', side: s, p0: 0.655, p1: 0.715, range: (t) => [2.02, xAtZ(0.5, t, true)], mat: M.lens, offset: 0.0015 }));
+  lightsF.add(surface({ mode: 't', side: s, p0: 0.662, p1: 0.672, range: (t) => [2.05, xAtZ(0.53, t, true)], mat: M.lightW, offset: 0.0028 }));
+  fasciaF.add(surface({ mode: 't', side: s, p0: 0.8, p1: 0.925, range: (t) => [xAtZ(0.58, t, true), XN], mat: M.trim, offset: 0.0015 }));
+}
+fasciaF.add(reg(lightsF, 'lightsF'));
+piece(upper, reg(fasciaF, 'fasciaF'), [1.0, -0.05, 0], 'A', 0.04);
+
+// --- fenders
+for (const s of sideSigns) {
+  const fender = group(
+    surface({ mode: 'x', side: s, p0: xFR + g, p1: xFS - g, range: (x) => [tH(x) + gt, 1], ...paint }),
+    surface({ mode: 'x', side: s, p0: xFS - g, p1: xHL - g, range: (x) => [tH(x) + gt, Math.max(tH(x) + gt, rampT(x + g) - gt)], ...paint }),
+    surface({ mode: 't', side: s, p0: 0.6, p1: 0.626, range: () => [1.1, 1.165], mat: M.lens, offset: 0.0015 }),
+  );
+  piece(upper, reg(fender, 'fender'), [0.15, 0.05, 0.85 * s], 'A', 0.06);
+}
+
+// --- windshield, cowl, roof glass
+const windshield = group(
+  surface({ mode: 'x', p0: xHeader + g, p1: xFR - g, range: (x) => [-(tWs(x) - gt), tWs(x) - gt], mat: M.glass }),
+  surface({ mode: 'x', p0: xFR + g, p1: xCowlR - g, range: () => [-tWs(xFR), tWs(xFR)], mat: M.trim }),
+);
+piece(upper, reg(windshield, 'windshield'), [0.55, 0.55, 0], 'A', 0.05);
+piece(upper, reg(surface({ mode: 'x', p0: xRoofEnd + g, p1: xHeader - g, range: () => [-(tRR - gt), tRR - gt], mat: M.glass }), 'roof'), [0, 0.7, 0], 'A', 0.0);
+
+// --- liftgate: deck + rear-face lobes, glass, light bar
+const liftgate = group(surface({ mode: 'x', p0: XT, p1: xRoofEnd - g, range: () => [-(tRR - gt), tRR - gt], ...paint }));
+liftgate.add(surface({ mode: 'x', p0: xGlassEnd, p1: xRoofEnd - 0.035, range: () => [-(tRR - 0.035), tRR - 0.035], mat: M.glass, offset: 0.003 }));
+const lightsR = group();
+for (const s of sideSigns) {
+  liftgate.add(surface({ mode: 't', side: s, p0: tRR - gt, p1: tRB - gt, range: (t) => [XT, xLin(t)], ...paint }));
+  lightsR.add(surface({ mode: 't', side: s, p0: 0.553, p1: 0.568, range: (t) => [XT, xLz(0.585, t)], mat: M.lightR, offset: 0.0015 }));
+}
+reg(liftgate, 'liftgate');
+liftgate.add(reg(lightsR, 'lightsR'));
+piece(upper, liftgate, [-0.85, 0.5, 0], 'A', 0.06);
+
+// --- rear fascia
+const fasciaR = group();
+for (const s of sideSigns) {
+  fasciaR.add(surface({ mode: 't', side: s, p0: tRB + gt, p1: 1, range: () => [XT, xRFS - g], ...paint }));
+  fasciaR.add(surface({ mode: 't', side: s, p0: 0.93, p1: 0.995, range: () => [XT, -1.9], mat: M.trim, offset: 0.0015 }));
+}
+piece(upper, reg(fasciaR, 'fasciaR'), [-1.0, -0.05, 0], 'A', 0.04);
+
+// --- doors (left first)
+const MIRROR_GEO = new THREE.SphereGeometry(1, 28, 18);
+for (const s of sideSigns) {
+  const df = group(
+    surface({ mode: 't', side: s, p0: tRail + gt, p1: T1, range: (t) => [xB(t) + g, xA(t) - g], mat: M.trim, rim: 0.01 }),
+    surface({ mode: 't', side: s, p0: T1, p1: tDB, range: (t) => [xB(t) + g, xFR - g], ...paint }),
+    surface({ mode: 't', side: s, p0: tRail + 0.02, p1: T1 - 0.01, range: (t) => [xB(t) + 0.028, xA(t) - 0.03], mat: M.glass, offset: 0.0025 }),
+  );
+  // mirror on the door's front corner
+  const mp = body(0.9, s * 0.505, false, new V3()), mn = bodyN(0.9, s * 0.505, -1, 1, new V3());
+  const mirror = new THREE.Group();
+  mirror.position.copy(mp).addScaledVector(mn, 0.035);
+  const housing = mesh(MIRROR_GEO, M.paint, -0.02, 0.07, s * 0.13); housing.scale.set(0.07, 0.056, 0.12);
+  const face = mesh(MIRROR_GEO, M.trim, -0.035, 0.07, s * 0.13); face.scale.set(0.06, 0.05, 0.108);
+  mirror.add(housing, face, rbox(0.09, 0.03, 0.08, 0.01, 0.03, s * 0.035, M.trim, 0.012));
+  df.add(mirror);
+  piece(upper, reg(df, 'doorF'), [0.1, 0.03, 1.32 * s], 'A', 0.08);
+
+  const dr = group(
+    surface({ mode: 't', side: s, p0: tRail + gt, p1: T1, range: (t) => [xC(t) + g, xB(t) - g], mat: M.trim, rim: 0.01 }),
+    surface({ mode: 't', side: s, p0: T1, p1: tDB, range: (t) => [xC(T1) + g, xB(t) - g], ...paint }),
+    surface({ mode: 't', side: s, p0: tRail + 0.02, p1: T1 - 0.01, range: (t) => [xC(t) + 0.035, xB(t) - 0.028], mat: M.glass, offset: 0.0025 }),
+  );
+  piece(upper, reg(dr, 'doorR'), [-0.15, 0.03, 1.32 * s], 'A', 0.1);
+}
+
+// --- body side outers (A-pillar skin, roof rail, quarter, rocker) + side lamps
+const xD = (t) => lerp(-1.17, -1.62, clamp01((t - tRail - 0.026) / (T1 - 0.014 - tRail - 0.026)));
+for (const s of sideSigns) {
+  const so = group(
+    surface({ mode: 'x', side: s, p0: 0.275, p1: xFR - g, range: (x) => [(x >= xHeader ? tWs(x) : tRR) + gt, tAo(x) - gt], ...paint }),
+    surface({ mode: 't', side: s, p0: tRR + gt, p1: tRail - gt, range: (t) => [xLout(t), 0.275], ...paint }),
+    surface({ mode: 't', side: s, p0: tRail - gt, p1: T1, range: (t) => [xLout(t), xC(t) - g], ...paint }),
+    surface({ mode: 't', side: s, p0: T1, p1: tRB, range: (t) => [xLout(t), xC(T1) - g], ...paint }),
+    surface({ mode: 't', side: s, p0: tRB, p1: 1, range: () => [xRFS + g, xC(T1) - g], ...paint }),
+    surface({ mode: 't', side: s, p0: tDB + gt, p1: 1, range: () => [xC(T1) - g, xFR - g], ...paint }),
+    surface({ mode: 't', side: s, p0: tRail + 0.026, p1: T1 - 0.014, range: (t) => [xD(t), xC(t) - 0.04], mat: M.glass, offset: 0.0025 }),
+  );
+  const lamp = group(
+    surface({ mode: 't', side: s, p0: 0.546, p1: 0.62, range: (t) => [xLz(0.615, t), -2.17], mat: M.lensR, offset: 0.0015 }),
+    surface({ mode: 't', side: s, p0: 0.553, p1: 0.568, range: (t) => [xLz(0.618, t), -2.18], mat: M.lightR, offset: 0.0028 }),
+  );
+  so.add(reg(lamp, 'lightsR'));
+  reg(so, 'side');
+  piece(upper, so, [-0.1, 0.05, 0.66 * s], 'A', 0.14);
+}
+
+// ---------------------------------------------------------------------------
+// Body-in-white: safety cage, castings, wheelhouses
+// ---------------------------------------------------------------------------
+const cage = new THREE.Group();
+for (const s of sideSigns) {
+  cage.add(
+    surfTube(chart(1.0, s * 0.33, 0.285, s * 0.262, 12), 0.035, 0.03, M.steel),                                          // A-pillar
+    surfTube(linspace(0.47, 0.97, 10).map((t) => [0.985, s * t]), 0.07, 0.035, M.steel),                                  // hinge pillar
+    surfTube(chart(0.285, s * 0.262, -1.28, s * 0.262, 16), 0.035, 0.028, M.steel),                                       // roof rail
+    surfTube(linspace(0.262, 0.97, 12).map((t) => [xB(t), s * t]), 0.06, 0.036, M.steel),                                 // B-pillar
+    surfTube([...linspace(0.262, T1, 6).map((t) => [xC(t), s * t]), [-1.115, s * 0.6], [-1.08, s * 0.66]], 0.06, 0.03, M.steel), // C-pillar
+    surfTube([[-1.28, s * 0.262], [-1.7, s * 0.262], [-2.05, s * 0.27], [xL(0.36), s * 0.36], [xL(0.5), s * 0.5], [xL(0.62), s * 0.62], [xL(0.7), s * 0.7]], 0.05, 0.03, M.steel), // D-pillar
+  );
+  cage.add(rbox(2.1, 0.15, 0.1, 0, 0.33, s * 0.775, M.steel, 0.03));                                                      // sill
+  cage.add(surface({ mode: 't', side: s, p0: tRail, p1: T1, range: (t) => [xB(t) - 0.03, xB(t) + 0.03], mat: M.trim, offset: -0.014 })); // B-pillar trim behind the door gap
+}
+for (const x of [0.29, -0.45, -1.27]) cage.add(surfTube(linspace(-0.262, 0.262, 9).map((t) => [x, t]), 0.03, 0.028, M.steel));
+cage.add(surfTube(linspace(-0.45, 0.45, 9).map((t) => [0.99, t]), 0.05, 0.034, M.steel));                                 // cowl bar
+{
+  const xs = linspace(uOf(xL(0.7)), uOf(XT + 0.002), 8).map(xOf);
+  cage.add(surfTube([...xs.map((x) => [x, -0.7]), ...xs.slice(0, -1).reverse().map((x) => [x, 0.7])], 0.04, 0.03, M.steel));
+}
+// wheelhouse liners follow the arch edge
+for (const xc of ARCHES) for (const s of sideSigns) {
+  const pts = [], n = 48, sillY = 0.26;
+  for (let i = 0; i <= n; i++) {
+    const u = i / n; let x, y;
+    const flank = (WY - sillY) / (Math.PI * ARCH_R + 2 * (WY - sillY));
+    if (u < flank) { x = xc + ARCH_R; y = lerp(sillY, WY, u / flank); }
+    else if (u > 1 - flank) { x = xc - ARCH_R; y = lerp(WY, sillY, (u - 1 + flank) / flank); }
+    else { const a = ((u - flank) / (1 - 2 * flank)) * Math.PI; x = xc + Math.cos(a) * ARCH_R; y = WY + Math.sin(a) * ARCH_R; }
+    pts.push([x, y]);
+  }
+  const pos = [], idx = [];
+  pts.forEach(([x, y], i) => {
+    const ys = P.sh(x), ysl = P.sill(x), q = clamp01((ys - y) / (ys - ysl));
+    const zo = P.ws(x) * planF(x) * (1 - (1 - P.tuck(x)) * Math.pow(q, 2.6)) - 0.008;
+    const rr = 1.015;
+    const px = xc + (x - xc) * rr, py = WY + (y - WY) * rr;
+    pos.push(px, py, s * zo, px, py, s * 0.6);
+    if (i < pts.length - 1) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 2, a + 1, a + 3); }
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+  cage.add(new THREE.Mesh(geo, M.plastic));
+}
+piece(upper, reg(cage, 'cage'), [0, 0, 0], 'B', 0);
+
+function ribGrid(x0, x1, z0, z1, y, h, sx, sz, th) {
+  const geos = [];
+  for (let x = x0; x <= x1 + 1e-6; x += sx) geos.push(new THREE.BoxGeometry(th, h, z1 - z0).translate(x, y + h / 2, (z0 + z1) / 2));
+  for (let z = z0; z <= z1 + 1e-6; z += sz) geos.push(new THREE.BoxGeometry(x1 - x0, h, th).translate((x0 + x1) / 2, y + h / 2, z));
+  return mergeGeometries(geos);
+}
+// front casting
+const castF = new THREE.Group();
+for (const s of sideSigns) {
+  castF.add(rbox(1.15, 0.1, 0.09, 1.58, 0.47, s * 0.42, M.alu, 0.02));                              // lower rail
+  const tower = group(
+    cyl(0.085, 0.095, 0.4, XFA, 0.66, s * 0.56, M.alu, 'y', 28, true),
+    cyl(0.088, 0.088, 0.02, XFA, 0.86, s * 0.56, M.alu, 'y', 28),
+    box(0.012, 0.3, 0.16, XFA + 0.1, 0.62, s * 0.5, M.alu),
+    box(0.012, 0.3, 0.16, XFA - 0.1, 0.62, s * 0.5, M.alu),
+    box(0.22, 0.012, 0.18, XFA, 0.52, s * 0.5, M.alu),
+  );
+  castF.add(tower);
+  castF.add(tube([[1.0, 0.86, s * 0.8], [1.5, 0.82, s * 0.74], [2.06, 0.7, s * 0.66]], 0.032, M.alu));    // apron rail
+  castF.add(box(0.85, 0.27, 0.012, 1.6, 0.62, s * 0.625, M.aluDark));                                    // web
+}
+castF.add(box(0.03, 0.46, 1.5, 1.0, 0.57, 0, M.aluDark));                                                 // dash wall
+castF.add(mesh(ribGrid(0.97, 0.97, -0.7, 0.7, 0.35, 0.44, 1, 0.14, 0.012).translate(0.04, 0, 0), M.aluDark));
+castF.add(rbox(0.08, 0.08, 0.84, 2.08, 0.5, 0, M.alu, 0.015));
+castF.add(tube([[2.16, 0.47, -0.64], [2.215, 0.47, -0.32], [2.232, 0.47, 0], [2.215, 0.47, 0.32], [2.16, 0.47, 0.64]], 0.045, M.alu, 8));  // bumper beam
+// frunk tub
+castF.add(box(0.74, 0.012, 0.8, 1.66, 0.585, 0, M.plastic), box(0.012, 0.21, 0.8, 1.29, 0.69, 0, M.plastic), box(0.012, 0.21, 0.8, 2.03, 0.69, 0, M.plastic));
+for (const s of sideSigns) castF.add(box(0.74, 0.21, 0.012, 1.66, 0.69, s * 0.4, M.plastic));
+piece(upper, reg(castF, 'castF'), [0.12, 0.1, 0], 'C', 0.0);
+
+// rear casting
+const castR = new THREE.Group();
+castR.add(box(1.06, 0.02, 1.3, -1.67, 0.61, 0, M.alu));
+castR.add(mesh(ribGrid(-2.18, -1.14, -0.62, 0.62, 0.535, 0.066, 0.115, 0.124, 0.011), M.aluDark));
+castR.add(box(0.2, 0.02, 1.3, -1.04, 0.36, 0, M.alu), box(0.02, 0.27, 1.3, -1.14, 0.48, 0, M.alu));
+for (const s of sideSigns) {
+  castR.add(rbox(1.25, 0.12, 0.1, -1.6, 0.43, s * 0.52, M.alu, 0.02));
+  castR.add(cyl(0.075, 0.085, 0.5, XRA, 0.72, s * 0.58, M.alu, 'y', 28, true), cyl(0.078, 0.078, 0.02, XRA, 0.97, s * 0.58, M.alu, 'y', 28));
+  castR.add(box(0.012, 0.36, 0.16, XRA + 0.09, 0.66, s * 0.52, M.alu), box(0.012, 0.36, 0.16, XRA - 0.09, 0.66, s * 0.52, M.alu));
+}
+castR.add(box(0.04, 0.32, 1.34, -2.2, 0.5, 0, M.alu));
+castR.add(tube([[-2.24, 0.6, -0.64], [-2.3, 0.6, -0.32], [-2.315, 0.6, 0], [-2.3, 0.6, 0.32], [-2.24, 0.6, 0.64]], 0.042, M.alu, 8));
+piece(upper, reg(castR, 'castR'), [-0.12, 0.1, 0], 'C', 0.0);
+
+// ---------------------------------------------------------------------------
+// Interior (lifted as one layer)
+// ---------------------------------------------------------------------------
+function seat(w, mat) {
+  const s = new THREE.Group();
+  const cush = rbox(0.53, 0.12, w, 0.04, 0.5, 0, mat, 0.045); cush.rotation.z = 0.06; s.add(cush);
+  s.add(rbox(0.44, 0.07, w * 0.8, 0.02, 0.41, 0, M.chassis, 0.01));
+  const back = new THREE.Group(); back.position.set(-0.2, 0.53, 0); back.rotation.z = 0.28; s.add(back);
+  back.add(rbox(0.12, 0.66, w, 0, 0.33, 0, mat, 0.05));
+  back.add(rbox(0.1, 0.2, w * 0.58, 0.005, 0.76, 0, mat, 0.045));
+  for (const k of [-1, 1]) back.add(rbox(0.13, 0.46, 0.07, 0.02, 0.28, k * (w / 2 - 0.03), mat, 0.03));
+  for (const k of [-1, 1]) s.add(box(0.5, 0.02, 0.03, 0.02, 0.355, k * w * 0.32, M.aluDark));
+  return s;
+}
+const seatsF = new THREE.Group();
+for (const z of [-0.37, 0.37]) { const st = seat(0.52, M.leather); st.position.set(0, 0, z); seatsF.add(st); }
+piece(cabin, reg(seatsF, 'seatsF'), [0.05, 0.04, 0], 'B', 0.08);
+
+const seatsR = new THREE.Group();
+{
+  const cush = rbox(0.5, 0.12, 1.22, -0.88, 0.53, 0, M.leather, 0.045); cush.rotation.z = 0.05; seatsR.add(cush);
+  seatsR.add(box(0.42, 0.08, 1.1, -0.9, 0.43, 0, M.chassis));
+  for (const [z, w] of [[-0.24, 0.72], [0.37, 0.48]]) {
+    const back = new THREE.Group(); back.position.set(-1.12, 0.56, z); back.rotation.z = 0.36;
+    back.add(rbox(0.11, 0.62, w - 0.01, 0, 0.31, 0, M.leather, 0.045));
+    seatsR.add(back);
+  }
+  for (const z of [-0.42, 0, 0.42]) { const hr = rbox(0.08, 0.15, 0.24, -1.37, 1.2, z, M.leather, 0.035); hr.rotation.z = 0.36; seatsR.add(hr); }
+}
+piece(cabin, reg(seatsR, 'seatsR'), [-0.25, 0.04, 0], 'B', 0.08);
+
+function drawScreen(g, w, h, mode) {
+  g.fillStyle = '#10141a'; g.fillRect(0, 0, w, h);
+  g.save(); g.translate(w * 0.38, 0);
+  g.fillStyle = '#1a2029'; g.fillRect(0, 0, w * 0.62, h);
+  g.strokeStyle = 'rgba(160,175,195,.18)'; g.lineWidth = 2;
+  for (let i = 0; i < 9; i++) { g.beginPath(); g.moveTo(i * 42 - 60, 0); g.lineTo(i * 42 + 40, h); g.stroke(); }
+  for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(0, i * 56 + 10); g.lineTo(w, i * 56 - 30); g.stroke(); }
+  g.strokeStyle = 'rgba(80,140,200,.35)'; g.lineWidth = 14; g.beginPath(); g.moveTo(-10, h * 0.8); g.bezierCurveTo(90, h * 0.6, 120, h * 0.95, w * 0.62, h * 0.7); g.stroke();
+  g.strokeStyle = '#3d8bff'; g.lineWidth = 6; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(60, h - 20); g.lineTo(80, h * 0.62); g.lineTo(190, h * 0.48); g.lineTo(230, 40); g.stroke();
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(230, 40, 7, 0, Math.PI * 2); g.fill();
+  g.restore();
+  g.fillStyle = '#e8edf3'; g.font = '700 64px "Segoe UI", Arial'; g.textAlign = 'left';
+  const speed = mode === 'drive' ? '96' : mode === 'regen' ? '64' : '0';
+  g.fillText(speed, 28, 92);
+  g.font = '500 18px "Segoe UI", Arial'; g.fillStyle = '#8b96a5'; g.fillText('km/h', 30, 118);
+  g.font = '600 18px "Segoe UI", Arial'; g.fillStyle = '#c9d1db';
+  g.fillText(mode === 'charge' ? '充电中 · 82%' : '82%  ·  412 km', 28, 160);
+  g.fillStyle = mode === 'charge' ? '#22c55e' : '#3d8bff'; g.fillRect(28, 172, 140 * 0.82, 8);
+  g.strokeStyle = 'rgba(255,255,255,.2)'; g.lineWidth = 1; g.strokeRect(28, 172, 140, 8);
+  // top-view car glyph
+  g.fillStyle = '#d5dbe3'; g.beginPath(); g.roundRect(70, 200, 58, 96, 24); g.fill();
+  g.fillStyle = '#10141a'; g.beginPath(); g.roundRect(78, 226, 42, 26, 8); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(0, h - 34, w, 34);
+  g.fillStyle = 'rgba(255,255,255,.45)'; for (let i = 0; i < 7; i++) g.fillRect(40 + i * 80, h - 22, 18, 10);
+}
+const screenCanvas = document.createElement('canvas'); screenCanvas.width = 640; screenCanvas.height = 384;
+const screenTex = new THREE.CanvasTexture(screenCanvas); screenTex.colorSpace = THREE.SRGBColorSpace;
+M.screen = new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false });
+const redrawScreen = (mode) => { drawScreen(screenCanvas.getContext('2d'), 640, 384, mode); screenTex.needsUpdate = true; };
+redrawScreen('drive');
+
+const dash = new THREE.Group();
+dash.add(rbox(0.36, 0.13, 1.46, 0.8, 0.86, 0, M.textile, 0.05));
+dash.add(rbox(0.3, 0.3, 1.38, 0.86, 0.66, 0, M.leather, 0.04));
+dash.add(box(0.008, 0.008, 1.38, 0.618, 0.83, 0, M.ambient));
+dash.add(box(0.012, 0.012, 1.3, 0.64, 0.905, 0, M.piano));
+{
+  const scr = new THREE.Group(); scr.position.set(0.58, 1.02, 0); scr.rotation.z = -0.18;
+  scr.add(rbox(0.016, 0.22, 0.36, 0.006, 0, 0, M.piano, 0.006));
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.348, 0.208), M.screen); plane.rotation.y = -Math.PI / 2; plane.position.x = -0.003; scr.add(plane);
+  scr.add(box(0.05, 0.08, 0.06, 0.04, -0.12, 0, M.piano));
+  dash.add(scr);
+}
+piece(cabin, reg(dash, 'dash'), [0.3, 0.16, 0], 'B', 0.1);
+
+const steering = new THREE.Group();
+{
+  const outer = new THREE.Group(); outer.position.set(0.4, 0.95, -0.37); outer.rotation.z = -0.42;
+  const inner = new THREE.Group(); inner.rotation.y = Math.PI / 2; outer.add(inner);
+  inner.add(new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.017, 14, 56), M.leather));
+  inner.add(cyl(0.055, 0.06, 0.05, 0, 0, 0, M.leather, 'z', 24));
+  for (const a of [0, Math.PI, -Math.PI / 2]) { const sp = box(0.13, 0.03, 0.016, Math.cos(a) * 0.11, Math.sin(a) * 0.11, 0, M.leather); sp.rotation.z = a; inner.add(sp); }
+  outer.add(cyl(0.025, 0.03, 0.3, 0.16, 0, 0, M.chassis, 'x', 14));
+  steering.add(outer);
+}
+piece(cabin, reg(steering, 'steering'), [0.18, 0.32, 0], 'B', 0.12);
+
+const consoleG = new THREE.Group();
+consoleG.add(rbox(0.95, 0.24, 0.24, -0.02, 0.48, 0, M.piano, 0.03));
+consoleG.add(rbox(0.38, 0.05, 0.25, -0.3, 0.62, 0, M.leather, 0.02));
+consoleG.add(box(0.2, 0.004, 0.18, 0.28, 0.602, 0, M.trim));
+{ const rs = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.1), M.screen); rs.rotation.y = -Math.PI / 2; rs.position.set(-0.501, 0.48, 0); consoleG.add(rs); }
+piece(cabin, reg(consoleG, 'console'), [0, 0, 0], 'B', 0.1);
+
+const hvac = group(rbox(0.25, 0.22, 0.6, 0.86, 0.6, 0.2, M.plastic, 0.03), cyl(0.07, 0.07, 0.1, 0.86, 0.6, -0.15, M.plastic, 'z', 24));
+piece(cabin, reg(hvac, 'hvac'), [0.45, 0.25, 0], 'B', 0.14);
+
+// ---------------------------------------------------------------------------
+// Skateboard: battery, drive units, suspension, wheels, thermal
+// ---------------------------------------------------------------------------
+const pack = new THREE.Group();
+pack.add(box(2.04, 0.012, 1.48, 0.02, 0.181, 0, M.tray));
+pack.add(box(0.02, 0.13, 1.48, -1.0, 0.25, 0, M.tray), box(0.02, 0.13, 1.48, 1.04, 0.25, 0, M.tray));
+for (const s of sideSigns) pack.add(box(2.04, 0.13, 0.04, 0.02, 0.25, s * 0.72, M.tray));
+{
+  const cellGeo = new THREE.CylinderGeometry(0.0225, 0.0225, 0.08, 14, 1);
+  const bricks = [-0.7, -0.235, 0.23, 0.695], rows = 9, cols = 23;
+  const im = new THREE.InstancedMesh(cellGeo, [M.cell, M.cellTop, M.cellTop], bricks.length * rows * cols);
+  const mtx = new THREE.Matrix4(); let i = 0;
+  const bars = [];
+  for (const bx of bricks) for (let r = 0; r < rows; r++) {
+    const x = bx + (r - (rows - 1) / 2) * 0.0407;
+    for (let c = 0; c < cols; c++) { mtx.makeTranslation(x, 0.228, (c - (cols - 1) / 2) * 0.047 + (r % 2 ? 0.01175 : -0.01175)); im.setMatrixAt(i++, mtx); }
+    bars.push(new THREE.BoxGeometry(0.012, 0.003, 1.1).translate(x, 0.27, 0));
+  }
+  im.computeBoundingSphere();
+  pack.add(im, new THREE.Mesh(mergeGeometries(bars), M.copper));
+  for (const x of [-0.4675, -0.0025, 0.4625]) pack.add(box(0.006, 0.075, 1.14, x, 0.23, 0, M.alu));
+}
+pack.add(rbox(0.12, 0.1, 0.52, 0.95, 0.25, 0, M.chassis, 0.015));
+for (const z of [-0.16, 0.0, 0.16]) pack.add(box(0.03, 0.04, 0.07, 1.025, 0.27, z, M.orange));
+piece(chassis, reg(pack, 'pack'), [0, 0, 0], 'C', 0);
+
+const packTop = group(box(2.04, 0.018, 1.48, 0.02, 0.326, 0, M.tray));
+for (const x of [0.18, -0.3, -0.72]) packTop.add(rbox(0.06, 0.04, 1.3, x, 0.355, 0, M.alu, 0.01));
+piece(chassis, reg(packTop, 'packTop'), [0, 0.56, 0], 'C', 0.0);
+
+// HV harness and flows
+const HV_FRONT = [[0.99, 0.27, 0.12], [1.12, 0.33, 0.12], [1.27, 0.48, 0.09], [XFA - 0.1, 0.578, 0.08]];
+const HV_REAR = [[-0.99, 0.27, 0.1], [-1.12, 0.34, 0.1], [-1.25, 0.5, 0.08], [XRA + 0.1, 0.578, 0.08]];
+const HV_CHG = [[-0.99, 0.27, -0.45], [-1.3, 0.4, -0.62], [-1.75, 0.68, -0.7], [-2.1, 0.9, -0.72], [-2.22, 0.96, -0.74]];
+const harness = group(tube(HV_FRONT, 0.016, M.orange), tube(HV_REAR, 0.016, M.orange), tube(HV_CHG, 0.016, M.orange));
+harness.add(rbox(0.05, 0.07, 0.06, -2.22, 0.96, -0.74, M.trim, 0.01));
+piece(chassis, reg(harness, 'harness'), [0, 0, 0], 'C', 0);
+
+const lv = group(rbox(0.18, 0.13, 0.15, 1.8, 0.47, 0.22, M.chassis, 0.015), box(0.03, 0.02, 0.03, 1.75, 0.545, 0.26, M.lightR));
+piece(chassis, reg(lv, 'lv'), [0.55, 0.62, 0.15], 'C', 0.1);
+
+function driveUnit(x, rMotor, dir) {
+  const du = new THREE.Group();
+  du.add(cyl(rMotor, rMotor, 0.3, x, 0.36, -0.12, M.aluDark, 'z', 36));
+  du.add(cyl(rMotor * 0.86, rMotor * 0.86, 0.03, x, 0.36, -0.285, M.chassis, 'z', 36));
+  for (const z of [-0.2, -0.12, -0.04]) du.add(mesh(new THREE.TorusGeometry(rMotor + 0.003, 0.006, 6, 40), M.aluDark, x, 0.36, z));
+  du.add(rbox(0.3, 0.27, 0.15, x + 0.02 * dir, 0.33, 0.1, M.aluDark, 0.03));
+  du.add(rbox(0.28, 0.075, 0.34, x - 0.02 * dir, 0.525, -0.02, M.alu, 0.02));
+  du.add(box(0.05, 0.04, 0.08, x - 0.1 * dir, 0.578, 0.08, M.orange));
+  du.add(cyl(0.032, 0.032, 0.06, x, WY, -0.3, M.chassis, 'z', 16), cyl(0.032, 0.032, 0.06, x, WY, 0.2, M.chassis, 'z', 16));
+  return du;
+}
+piece(chassis, reg(driveUnit(XFA, 0.115, 1), 'duF'), [0.55, 0.22, 0], 'C', 0.06);
+piece(chassis, reg(driveUnit(XRA, 0.13, -1), 'duR'), [-0.55, 0.22, 0], 'C', 0.06);
+
+function subframe(x) {
+  const sf = new THREE.Group();
+  for (const s of sideSigns) sf.add(rbox(0.66, 0.05, 0.06, x, 0.25, s * 0.36, M.chassis, 0.015));
+  for (const dx of [-0.29, 0.29]) sf.add(rbox(0.06, 0.05, 0.78, x + dx, 0.25, 0, M.chassis, 0.015));
+  return sf;
+}
+const subF = subframe(XFA);
+subF.add(cyl(0.03, 0.03, 0.74, XFA - 0.16, 0.34, 0, M.aluDark, 'z', 16), cyl(0.045, 0.045, 0.12, XFA - 0.16, 0.34, -0.16, M.chassis, 'z', 16));
+piece(chassis, reg(subF, 'subF'), [0.28, 0, 0], 'C', 0.02);
+piece(chassis, reg(subframe(XRA), 'subR'), [-0.28, 0, 0], 'C', 0.02);
+
+function boot(x, y, z0, s) { // CV boot
+  const pts = []; for (let i = 0; i <= 10; i++) pts.push(new THREE.Vector2(0.03 + 0.012 * Math.abs(Math.sin(i * 1.4)) + (i / 10) * 0.012, (i / 10) * 0.07));
+  const b = new THREE.Mesh(new THREE.LatheGeometry(pts, 18), M.plastic); b.rotation.x = s * Math.PI / 2; b.position.set(x, y, z0); return b;
+}
+function suspension(x, s, front) {
+  const g2 = new THREE.Group(), zz = (v) => s * v;
+  if (front) {
+    g2.add(rod([x + 0.2, 0.25, zz(0.36)], [x, 0.22, zz(0.7)], 0.016, M.chassis), rod([x - 0.22, 0.25, zz(0.36)], [x, 0.22, zz(0.7)], 0.016, M.chassis));
+    g2.add(rod([x + 0.13, 0.66, zz(0.5)], [x - 0.01, 0.62, zz(0.67)], 0.012, M.chassis), rod([x - 0.12, 0.66, zz(0.5)], [x - 0.01, 0.62, zz(0.67)], 0.012, M.chassis));
+    g2.add(rod([x - 0.16, 0.36, zz(0.36)], [x - 0.1, 0.37, zz(0.69)], 0.01, M.aluDark));
+  } else {
+    for (const [a, b] of [[[x + 0.18, 0.28, zz(0.36)], [x + 0.05, 0.24, zz(0.7)]], [[x - 0.16, 0.27, zz(0.36)], [x - 0.04, 0.24, zz(0.7)]], [[x + 0.12, 0.55, zz(0.42)], [x + 0.02, 0.56, zz(0.68)]], [[x - 0.12, 0.55, zz(0.42)], [x - 0.02, 0.56, zz(0.68)]], [[x - 0.2, 0.38, zz(0.4)], [x - 0.08, 0.36, zz(0.7)]]]) g2.add(rod(a, b, 0.012, M.chassis));
+  }
+  g2.add(rbox(0.09, 0.36, 0.06, x, 0.42, zz(0.7), M.aluDark, 0.02));
+  const cx = x - 0.04, cz = zz(front ? 0.6 : 0.58), top = front ? 0.84 : 0.95;
+  g2.add(cyl(0.026, 0.026, 0.3, cx, 0.42, cz, M.chassis, 'y', 14), cyl(0.012, 0.012, top - 0.55, cx, (top + 0.55) / 2, cz, M.alu, 'y', 10));
+  g2.add(helix(cx, cz, 0.4, top - 0.08, 0.058, 0.0065, 6.5, M.steel));
+  g2.add(cyl(0.07, 0.07, 0.012, cx, top - 0.07, cz, M.chassis, 'y', 24), cyl(0.07, 0.07, 0.012, cx, 0.39, cz, M.chassis, 'y', 24));
+  g2.add(cyl(0.022, 0.022, 0.4, x, WY, zz(0.48), M.aluDark, 'z', 14));
+  g2.add(boot(x, WY, zz(0.26), s), boot(x, WY, zz(0.66), -s));
+  return g2;
+}
+for (const s of sideSigns) {
+  piece(chassis, reg(suspension(XFA, s, true), 'suspF'), [0, 0, 0.5 * s], 'C', 0.03);
+  piece(chassis, reg(suspension(XRA, s, false), 'suspR'), [0, 0, 0.5 * s], 'C', 0.03);
+}
+
+// wheels
+const treadTex = canvasTex(2048, 128, (gx, w, h) => {
+  gx.fillStyle = '#cfcfcf'; gx.fillRect(0, 0, w, h);
+  const band = (v) => (1 - v) * h;
+  gx.fillStyle = '#2a2a2a';
+  for (const v of [0.405, 0.47, 0.53, 0.595]) gx.fillRect(0, band(v) - 3, w, 6);
+  gx.strokeStyle = '#555'; gx.lineWidth = 4;
+  for (let i = 0; i < 84; i++) {
+    const x = (i / 84) * w;
+    gx.beginPath(); gx.moveTo(x, band(0.39)); gx.lineTo(x + 10, band(0.36)); gx.stroke();
+    gx.beginPath(); gx.moveTo(x + 6, band(0.64)); gx.lineTo(x + 16, band(0.61)); gx.stroke();
+    gx.beginPath(); gx.moveTo(x + 12, band(0.48)); gx.lineTo(x + 18, band(0.52)); gx.stroke();
+  }
+}, false);
+treadTex.wrapS = THREE.RepeatWrapping;
+const tireMat = M.rubber.clone(); tireMat.bumpMap = treadTex; tireMat.bumpScale = 3;
+const TIRE_GEO = (() => {
+  const prof = [[0.244, -0.112], [0.262, -0.122], [0.3, -0.127], [0.332, -0.124], [0.348, -0.115], [0.355, -0.098], [0.356, -0.06], [0.356, 0], [0.356, 0.06], [0.355, 0.098], [0.348, 0.115], [0.332, 0.124], [0.3, 0.127], [0.262, 0.122], [0.244, 0.112]];
+  const geo = new THREE.LatheGeometry(prof.map(([r, h]) => new THREE.Vector2(r, h)), 96);
+  geo.rotateX(Math.PI / 2);
+  return geo;
+})();
+const FACE_GEO = (() => {
+  const sh = new THREE.Shape(); sh.absarc(0, 0, 0.232, 0, Math.PI * 2, false);
+  const deg = Math.PI / 180;
+  for (let k = 0; k < 6; k++) {
+    const c = k * 60 * deg, hole = new THREE.Path();
+    const ro = 0.2, ri = 0.088, ao = 19 * deg, ai = 12 * deg;
+    hole.moveTo(Math.cos(c - ao) * ro, Math.sin(c - ao) * ro);
+    hole.absarc(0, 0, ro, c - ao, c + ao, false);
+    hole.lineTo(Math.cos(c + ai) * ri, Math.sin(c + ai) * ri);
+    hole.absarc(0, 0, ri, c + ai, c - ai, true);
+    hole.closePath();
+    sh.holes.push(hole);
+  }
+  const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.018, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.005, bevelSegments: 2, curveSegments: 40 });
+  geo.translate(0, 0, 0.06);
+  return geo;
+})();
+const BARREL_GEO = cylGeo(0.236, 0.236, 0.2, 'z', 64, true).translate(0, 0, -0.005);
+const LIP_GEO = new THREE.TorusGeometry(0.238, 0.007, 8, 64).translate(0, 0, 0.094);
+const DISC_GEO = cylGeo(0.168, 0.168, 0.026, 'z', 48).translate(0, 0, 0.0);
+const HAT_GEO = cylGeo(0.085, 0.085, 0.05, 'z', 32).translate(0, 0, 0.03);
+const CAP_GEO = cylGeo(0.042, 0.042, 0.012, 'z', 32).translate(0, 0, 0.088);
+const spinners = [];
+function wheelAssembly(x, s) {
+  const w = new THREE.Group(); w.position.set(x, WY, s * HT); if (s < 0) w.scale.z = -1;
+  const spin = new THREE.Group(); w.add(spin);
+  spin.add(new THREE.Mesh(TIRE_GEO, tireMat), new THREE.Mesh(BARREL_GEO, M.rim), new THREE.Mesh(LIP_GEO, M.rim), new THREE.Mesh(FACE_GEO, M.rimFace), new THREE.Mesh(DISC_GEO, M.disc), new THREE.Mesh(HAT_GEO, M.disc), new THREE.Mesh(CAP_GEO, M.trim));
+  for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2 + 0.3; spin.add(mesh(cylGeo(0.011, 0.011, 0.02, 'z', 10), M.disc, Math.cos(a) * 0.058, Math.sin(a) * 0.058, 0.084)); }
+  const cal = rbox(0.07, 0.16, 0.085, Math.cos(2.75) * 0.165, Math.sin(2.75) * 0.165, -0.005, M.caliper, 0.02); cal.rotation.z = 2.75; w.add(cal);
+  spinners.push(spin);
+  return w;
+}
+for (const s of sideSigns) {
+  piece(chassis, reg(wheelAssembly(XFA, s), 'wheel'), [0, 0, 1.0 * s], 'C', 0.05);
+  piece(chassis, reg(wheelAssembly(XRA, s), 'wheel'), [0, 0, 1.0 * s], 'C', 0.05);
+}
+
+// thermal
+const heatpump = new THREE.Group();
+heatpump.add(rbox(0.18, 0.12, 0.26, 1.13, 0.6, 0.3, M.plastic, 0.02), cyl(0.065, 0.065, 0.04, 1.13, 0.68, 0.26, M.aluDark, 'y', 28));
+heatpump.add(rbox(0.14, 0.14, 0.12, 1.13, 0.76, 0.36, M.reservoir, 0.03));
+heatpump.add(cyl(0.035, 0.035, 0.07, 1.13, 0.6, 0.47, M.chassis, 'z', 16), cyl(0.035, 0.035, 0.07, 1.13, 0.6, 0.13, M.chassis, 'z', 16));
+heatpump.add(cyl(0.055, 0.055, 0.18, 1.12, 0.45, -0.3, M.alu, 'z', 24));
+const COOL_A = [[1.13, 0.56, 0.3], [1.06, 0.4, 0.32], [1.0, 0.25, 0.32]];
+const COOL_B = [[1.2, 0.58, 0.36], [1.6, 0.45, 0.4], [2.0, 0.42, 0.35]];
+const COOL_C = [[1.18, 0.56, 0.22], [1.36, 0.46, 0.2], [XFA, 0.38, 0.2]];
+const COOL_D = [[-1.0, 0.25, 0.32], [-1.15, 0.36, 0.26], [XRA + 0.05, 0.38, 0.2]];
+for (const c of [COOL_A, COOL_B, COOL_C, COOL_D]) heatpump.add(tube(c, 0.009, M.coolant, 8));
+piece(chassis, reg(heatpump, 'heatpump'), [0.75, 0.45, 0], 'C', 0.08);
+
+const finTex = canvasTex(256, 64, (gx, w, h) => { gx.fillStyle = '#7c838c'; gx.fillRect(0, 0, w, h); gx.fillStyle = '#3d434b'; for (let i = 0; i < w; i += 4) gx.fillRect(i, 0, 2, h); });
+finTex.wrapS = THREE.RepeatWrapping; finTex.repeat.set(4, 1);
+const radiator = new THREE.Group();
+{
+  const core = rbox(0.035, 0.28, 0.96, 2.02, 0.42, 0, new THREE.MeshStandardMaterial({ map: finTex, roughness: 0.6, metalness: 0.6 }), 0.008);
+  core.rotation.z = -0.25; radiator.add(core);
+  for (const z of [-0.23, 0.23]) {
+    radiator.add(cyl(0.12, 0.12, 0.03, 1.96, 0.43, z, M.plastic, 'x', 32, true));
+    for (let k = 0; k < 7; k++) { const bl = box(0.008, 0.1, 0.03, 1.96, 0.43, z, M.plastic); bl.rotation.x = (k / 7) * Math.PI; bl.geometry.translate(0, 0.05, 0); radiator.add(bl); }
+  }
+}
+piece(chassis, reg(radiator, 'radiator'), [1.05, 0.12, 0], 'C', 0.1);
+
+// energy-flow overlays (only shown with 能量流 on)
+const uTime = { value: 0 };
+function flowMat(color, len) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uTime, uColor: { value: new THREE.Color(color) }, uDir: { value: 1 }, uOn: { value: 0 }, uLen: { value: len }, uSpeed: { value: 1 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform float uTime, uDir, uOn, uLen, uSpeed; uniform vec3 uColor; varying vec2 vUv;
+      void main(){
+        float s = fract(vUv.x * uLen * 3.0 - uTime * 1.4 * uSpeed * uDir);
+        float pulse = smoothstep(0.0, 0.12, s) * (1.0 - smoothstep(0.12, 0.55, s));
+        float a = (0.18 + 0.82 * pulse) * uOn;
+        if (a < 0.01) discard;
+        gl_FragColor = vec4(mix(uColor, vec3(1.0), pulse * 0.35), a);
+      }`,
+    transparent: true, depthWrite: false, depthTest: false, toneMapped: false,
+  });
+}
+const flows = [];
+function flowTube(pts, r, color, kind) {
+  const curve = new THREE.CatmullRomCurve3(pts.map((p) => new V3(...p)), false, 'centripetal');
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, r, 10, false), flowMat(color, curve.getLength()));
+  m.renderOrder = 10; m.frustumCulled = false; chassis.add(m); flows.push({ m, kind });
+}
+flowTube(HV_FRONT, 0.026, '#ff7a1a', 'hv'); flowTube(HV_REAR, 0.026, '#ff7a1a', 'hv');
+flowTube(HV_CHG, 0.026, '#22c55e', 'chg');
+for (const c of [COOL_A, COOL_B, COOL_C, COOL_D]) flowTube(c, 0.017, '#22b8f0', 'cool');
+
+// Highlight / ghost variants
+const ACCENT = new THREE.Color('#2f6bff');
+const ghostMat = new THREE.MeshStandardMaterial({ color: 0xa9b6c8, transparent: true, opacity: 0.07, depthWrite: false, roughness: 0.6, side: THREE.DoubleSide });
+const xrayMat = new THREE.MeshStandardMaterial({ color: 0x9fb0c8, transparent: true, opacity: 0.1, depthWrite: false, roughness: 0.5, side: THREE.DoubleSide });
+const variants = new Map();
+function variant(base, kind) {
+  if (Array.isArray(base)) return base.map((b) => variant(b, kind));
+  if (kind === 'ghost') return ghostMat;
+  if (kind === 'xray') return xrayMat;
+  const k = base.uuid + kind;
+  if (!variants.has(k)) {
+    const m = base.clone();
+    if (m.emissive) { m.emissive = ACCENT.clone(); m.emissiveIntensity = kind === 'sel' ? 0.42 : 0.22; }
+    else if (m.color) m.color.lerp(ACCENT, kind === 'sel' ? 0.5 : 0.3);
+    variants.set(k, m);
+  }
+  return variants.get(k);
+}
+
+// ---------------------------------------------------------------------------
+// State + UI
+// ---------------------------------------------------------------------------
+const state = { p: 0, target: 0, xray: false, labels: true, flow: false, flowMode: 'drive', sel: null, hover: null, iso: null, hidden: new Set(), paint: 'red' };
+let time = 0, lastInput = 0;
+
+function applyLook() {
+  for (const [part, list] of meshesByPart) {
+    const info = PARTS[part];
+    const hidden = state.hidden.has(info.cat);
+    let kind = null;
+    if (state.iso && state.iso !== part) kind = 'ghost';
+    else if (state.xray && SHELL.has(info.cat) && state.sel !== part) kind = 'xray';
+    else if (state.sel === part) kind = 'sel';
+    else if (state.hover === part) kind = 'hover';
+    for (const m of list) {
+      m.visible = !hidden;
+      m.material = kind ? variant(m.userData.base, kind) : m.userData.base;
+      m.castShadow = kind !== 'ghost' && kind !== 'xray' && !(m.userData.base === M.lightW || m.userData.base === M.lightR);
+    }
+  }
+}
+
+// tree
+const treeBody = $('#treeBody');
+for (const c of CATS) {
+  const parts = Object.entries(PARTS).filter(([, p]) => p.cat === c.key);
+  const el = document.createElement('div');
+  el.className = 'cat'; el.dataset.cat = c.key; el.style.setProperty('--c', c.color);
+  el.innerHTML = `<div class="cat-head"><button class="cat-row" aria-expanded="false"><svg class="chev" viewBox="0 0 10 10"><path d="M3 1.5 7 5 3 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><i></i><span>${c.name}</span><em>${parts.length}</em></button>
+    <button class="eye" title="显示 / 隐藏" aria-label="显示或隐藏${c.name}"><svg class="on" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="2.1" fill="currentColor"/></svg><svg class="off" viewBox="0 0 16 16"><path d="M2 2l12 12M6.3 4c.5-.2 1.1-.3 1.7-.3 4 0 6.5 4.3 6.5 4.3s-.7 1.3-2 2.5M9.8 11.9c-.6.4-1.2.6-1.8.6C4 12.5 1.5 8 1.5 8s.8-1.4 2.2-2.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button></div>
+    <ul class="parts">${parts.map(([k, p]) => `<li><button data-part="${k}">${p.name}<small>${p.en}</small></button></li>`).join('')}</ul>`;
+  treeBody.appendChild(el);
+  el.querySelector('.cat-row').addEventListener('click', () => { const open = !el.classList.contains('open'); el.classList.toggle('open', open); el.querySelector('.cat-row').setAttribute('aria-expanded', open); });
+  el.querySelector('.eye').addEventListener('click', () => {
+    if (state.hidden.has(c.key)) state.hidden.delete(c.key); else state.hidden.add(c.key);
+    el.classList.toggle('hidden', state.hidden.has(c.key));
+    if (state.sel && state.hidden.has(PARTS[state.sel].cat)) select(null);
+    applyLook(); wake();
+  });
+}
+$('#partCount').textContent = `${Object.keys(PARTS).length} 个部件 · ${pieces.length} 个拆解单元`;
+treeBody.addEventListener('click', (e) => { const b = e.target.closest('[data-part]'); if (b) select(b.dataset.part, true); });
+$('#treeToggle').addEventListener('click', () => $('#tree').classList.toggle('open'));
+
+// swatches
+const swEl = $('#swatches');
+for (const p of PAINTS) {
+  const b = document.createElement('button');
+  b.className = 'sw'; b.style.setProperty('--c', p.css); b.title = p.name; b.setAttribute('aria-label', `车漆：${p.name}`); b.dataset.paint = p.key;
+  b.addEventListener('click', () => setPaint(p.key));
+  swEl.appendChild(b);
+}
+function setPaint(k) {
+  const p = PAINTS.find((q) => q.key === k) || PAINTS[0];
+  state.paint = p.key;
+  M.paint.color.set(p.color); M.paint.metalness = p.metal; M.paint.roughness = p.rough;
+  for (const [key, m] of variants) if (key.startsWith(M.paint.uuid)) { m.color.copy(M.paint.color); m.metalness = p.metal; m.roughness = p.rough; }
+  swEl.querySelectorAll('.sw').forEach((b) => b.classList.toggle('on', b.dataset.paint === p.key));
+}
+
+// card
+const card = $('#card');
+function select(part, focus = false) {
+  state.sel = part;
+  if (state.iso && state.iso !== part) state.iso = null;
+  document.querySelectorAll('.parts button').forEach((b) => b.classList.toggle('sel', b.dataset.part === part));
+  if (!part) { card.hidden = true; applyLook(); syncLabels(); return; }
+  const info = PARTS[part], c = CAT[info.cat];
+  if (state.hidden.has(info.cat)) { state.hidden.delete(info.cat); document.querySelector(`.cat[data-cat="${info.cat}"]`).classList.remove('hidden'); }
+  const catEl = document.querySelector(`.cat[data-cat="${info.cat}"]`); catEl.classList.add('open');
+  card.style.setProperty('--c', c.color);
+  $('#cardKind').textContent = `${c.name} · ${c.en}`;
+  $('#cardName').textContent = info.name;
+  $('#cardEn').textContent = info.en;
+  $('#cardSpecs').innerHTML = info.specs.map((s) => `<li>${s}</li>`).join('');
+  $('#cardNote').textContent = info.note || '';
+  $('#cardIso').classList.toggle('on', state.iso === part);
+  card.hidden = false;
+  applyLook(); syncLabels();
+  if (focus) focusPart(part);
+  wake();
+}
+$('#cardClose').addEventListener('click', () => select(null));
+$('#cardFocus').addEventListener('click', () => state.sel && focusPart(state.sel));
+$('#cardIso').addEventListener('click', () => { state.iso = state.iso === state.sel ? null : state.sel; $('#cardIso').classList.toggle('on', !!state.iso); applyLook(); });
+
+// labels
+const LABELS = ['roof', 'doorF', 'castF', 'castR', 'dash', 'seatsF', 'pack', 'duF', 'duR', 'wheel', 'heatpump'];
+const labelRoot = $('#labels'), svg = $('#leaders');
+const SVGNS = 'http://www.w3.org/2000/svg';
+const labels = LABELS.map((k) => {
+  const el = document.createElement('div');
+  el.className = 'lbl'; el.style.setProperty('--c', CAT[PARTS[k].cat].color);
+  el.innerHTML = `<i></i>${PARTS[k].name}`;
+  el.addEventListener('click', () => select(k, true));
+  el.addEventListener('pointerenter', () => { state.hover = k; applyLook(); });
+  el.addEventListener('pointerleave', () => { state.hover = null; applyLook(); });
+  labelRoot.appendChild(el);
+  const line = document.createElementNS(SVGNS, 'line'), dot = document.createElementNS(SVGNS, 'circle');
+  dot.setAttribute('r', 3.5); svg.append(line, dot);
+  const first = meshesByPart.get(k)[0];
+  return { k, el, line, dot, w: 0, anchor: ['heatpump', 'doorF', 'wheel', 'dash'].includes(k) ? first : first.parent };
+});
+function syncLabels() { for (const L of labels) L.el.classList.toggle('active', state.sel === L.k); }
+const _box = new THREE.Box3(), _v = new V3();
+let labelVis = 0;
+function updateLabels(dt) {
+  const want = state.labels && state.p > 0.55 ? 1 : 0;
+  labelVis = damp(labelVis, want, 8, dt);
+  labelRoot.style.opacity = labelVis.toFixed(3);
+  if (labelVis < 0.01) { labelRoot.style.visibility = 'hidden'; return; }
+  labelRoot.style.visibility = 'visible';
+  const W = innerWidth, H = innerHeight, items = [];
+  for (const L of labels) {
+    const hide = state.hidden.has(PARTS[L.k].cat);
+    if (!hide) {
+      _box.setFromObject(L.anchor); _box.getCenter(_v); _v.project(camera);
+      if (_v.z < 1) {
+        const sx = (_v.x * 0.5 + 0.5) * W, sy = (-_v.y * 0.5 + 0.5) * H, side = sx < W / 2 ? -1 : 1;
+        items.push({ L, sx, sy, side, ly: sy - 44 });
+        continue;
+      }
+    }
+    L.el.style.display = 'none'; L.line.style.display = 'none'; L.dot.style.display = 'none';
+  }
+  for (const side of [-1, 1]) {
+    const arr = items.filter((i) => i.side === side).sort((a, b) => a.ly - b.ly);
+    for (let i = 1; i < arr.length; i++) if (arr[i].ly - arr[i - 1].ly < 30) arr[i].ly = arr[i - 1].ly + 30;
+  }
+  for (const it of items) {
+    const { L, sx, sy, side } = it;
+    L.el.style.display = ''; L.line.style.display = ''; L.dot.style.display = '';
+    if (!L.w) L.w = L.el.offsetWidth;
+    const ly = clamp(it.ly, 70, H - 120);
+    const ex = clamp(side < 0 ? sx - 64 - L.w : sx + 64, 8, W - L.w - 8);
+    const lx = side < 0 ? ex + L.w : ex;
+    L.el.style.transform = `translate(${ex.toFixed(1)}px, ${(ly - 13).toFixed(1)}px)`;
+    L.line.setAttribute('x1', lx); L.line.setAttribute('y1', ly); L.line.setAttribute('x2', sx); L.line.setAttribute('y2', sy);
+    L.dot.setAttribute('cx', sx); L.dot.setAttribute('cy', sy);
+  }
+}
+
+// dock
+const slider = $('#explode'), pctEl = $('#pct');
+let sliding = false;
+slider.addEventListener('input', () => { sliding = true; state.p = state.target = slider.value / 1000; wake(); });
+slider.addEventListener('change', () => { sliding = false; });
+$('#playBtn').addEventListener('click', () => toggleExplode());
+function toggleExplode() { state.target = state.target > 0.5 ? 0 : 1; wake(); }
+const acts = {
+  xray: () => { state.xray = !state.xray; applyLook(); },
+  labels: () => { state.labels = !state.labels; },
+  flow: () => { state.flow = !state.flow; if (state.flow) { if (!state.xray) acts.xray(); state.target = 0; } $('#flowSeg').hidden = !state.flow; },
+};
+function syncButtons() {
+  document.querySelectorAll('[data-act]').forEach((b) => b.classList.toggle('on', !!state[b.dataset.act]));
+  document.querySelectorAll('[data-flow]').forEach((b) => b.classList.toggle('on', b.dataset.flow === state.flowMode));
+}
+document.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => { acts[b.dataset.act](); syncButtons(); wake(); }));
+const FLOW_INFO = { drive: '<b>驱动</b> · 电池 → 双电机', regen: '<b>回收</b> · 电机 → 电池', charge: '<b>充电</b> · 充电口 → 电池' };
+function setFlowMode(m) { state.flowMode = m; $('#flowInfo').innerHTML = FLOW_INFO[m]; redrawScreen(m); syncButtons(); wake(); }
+document.querySelectorAll('[data-flow]').forEach((b) => b.addEventListener('click', () => setFlowMode(b.dataset.flow)));
+$('#flowInfo').innerHTML = FLOW_INFO.drive;
+
+// ---------------------------------------------------------------------------
+// Camera: views, explode-aware framing, flights
+// ---------------------------------------------------------------------------
+// dir = assembled view direction, dirX = direction once fully exploded (higher, to see into the stack)
+const VIEWS = {
+  hero: { dir: new V3(0.74, 0.3, -0.6), dirX: new V3(0.72, 0.5, -0.62), dist: 8.6, target: new V3(0.1, 0.7, 0) },
+  side: { dir: new V3(0.0, 0.1, -1), dirX: new V3(0.0, 0.2, -1), dist: 8.8, target: new V3(0, 0.75, 0) },
+  top: { dir: new V3(0.02, 1, -0.06), dirX: new V3(0.02, 1, -0.06), dist: 10.5, target: new V3(0, 0.4, 0) },
+  rear: { dir: new V3(-0.74, 0.3, -0.6), dirX: new V3(-0.72, 0.5, -0.62), dist: 8.6, target: new V3(-0.1, 0.7, 0) },
+};
+const FRAME_DY = 1.35, FRAME_K = 0.55;
+let curView = 'hero';
+const frameE = () => {
+  const kA = ease(clamp01(state.p / 0.4)), kB = ease(clamp01((state.p - 0.2) / 0.45)), kC = ease(clamp01((state.p - 0.5) / 0.5));
+  return 0.2 * kA + 0.6 * kB + 0.2 * kC;
+};
+const aspectFit = () => clamp(1.25 / camera.aspect, 1, 2.3);
+let fly = null;
+function viewEnd(name) {
+  const v = VIEWS[name], e = frameE();
+  const q = v.target.clone(); q.y += FRAME_DY * e * (name === 'top' ? 0.3 : 1);
+  const dir = v.dir.clone().normalize().lerp(v.dirX.clone().normalize(), e).normalize();
+  const p = q.clone().addScaledVector(dir, v.dist * (1 + FRAME_K * e) * aspectFit());
+  return [p, q];
+}
+function flyTo(name, dur = 1.4) {
+  curView = name;
+  document.querySelectorAll('[data-view]').forEach((b) => b.classList.toggle('on', b.dataset.view === name));
+  fly = { t0: time, dur, p0: camera.position.clone(), q0: controls.target.clone(), end: () => viewEnd(name) };
+  wake();
+}
+function focusPart(part) {
+  _box.makeEmpty();
+  for (const m of meshesByPart.get(part)) if (m.visible) _box.expandByObject(m);
+  if (_box.isEmpty()) return;
+  const c = _box.getCenter(new V3()), size = _box.getSize(new V3()).length();
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  const dist = clamp(size * 1.6, 2.4, 14) * aspectFit();
+  fly = { t0: time, dur: 1.1, p0: camera.position.clone(), q0: controls.target.clone(), end: () => [c.clone().addScaledVector(dir, dist), c] };
+  document.querySelectorAll('[data-view]').forEach((b) => b.classList.remove('on'));
+}
+document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => flyTo(b.dataset.view)));
+let lastE = 0;
+function applyFraming() {
+  const e = frameE();
+  if (!fly && Math.abs(e - lastE) > 1e-6) {
+    const off = camera.position.clone().sub(controls.target).multiplyScalar((1 + FRAME_K * e) / (1 + FRAME_K * lastE));
+    controls.target.y += FRAME_DY * (e - lastE);
+    camera.position.copy(controls.target).add(off);
+  }
+  lastE = e;
+}
+
+// ---------------------------------------------------------------------------
+// Picking
+// ---------------------------------------------------------------------------
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), tip = $('#tip');
+let pointer = null, down = null, dragging = false, pickDirty = false;
+function pick() {
+  ray.setFromCamera(ndc, camera);
+  const list = pickables.filter((m) => { const mm = Array.isArray(m.material) ? m.material[0] : m.material; return m.visible && mm !== ghostMat && mm !== xrayMat; });
+  const hit = ray.intersectObjects(list, false)[0];
+  return hit ? hit.object.userData.part : null;
+}
+canvas.addEventListener('pointermove', (e) => {
+  pointer = { x: e.clientX, y: e.clientY };
+  ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  pickDirty = true;
+});
+canvas.addEventListener('pointerleave', () => { pointer = null; if (state.hover) { state.hover = null; applyLook(); } tip.classList.remove('show'); });
+canvas.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; wake(); });
+canvas.addEventListener('pointerup', (e) => {
+  if (!down) return;
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+  if (moved < 5 && performance.now() - down.t < 500 && e.button === 0) {
+    ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+    const part = pick();
+    select(part === state.sel ? null : part);
+  }
+  down = null;
+});
+controls.addEventListener('start', () => { dragging = true; fly = null; wake(); document.querySelectorAll('[data-view]').forEach((b) => b.classList.remove('on')); });
+controls.addEventListener('end', () => { dragging = false; });
+let pickClock = 0;
+function updateHover(dt) {
+  pickClock += dt;
+  if (!pointer || dragging || !pickDirty || pickClock < 0.04) return;
+  pickClock = 0; pickDirty = false;
+  const part = pick();
+  if (part !== state.hover) { state.hover = part; applyLook(); canvas.style.cursor = part ? 'pointer' : ''; }
+  if (part) {
+    tip.innerHTML = `${PARTS[part].name}<small>${CAT[PARTS[part].cat].name}</small>`;
+    tip.style.transform = `translate(${pointer.x + 14}px, ${pointer.y + 16}px)`;
+    tip.classList.add('show');
+  } else tip.classList.remove('show');
+}
+
+// keyboard
+addEventListener('keydown', (e) => {
+  if (e.target.closest && e.target.closest('input, textarea')) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === 'e' || k === ' ') { e.preventDefault(); toggleExplode(); }
+  else if (acts[{ x: 'xray', l: 'labels', f: 'flow' }[k]]) { acts[{ x: 'xray', l: 'labels', f: 'flow' }[k]](); syncButtons(); wake(); }
+  else if ('1234'.includes(k) && k) flyTo(['hero', 'side', 'top', 'rear'][+k - 1]);
+  else if (k === 'r') { select(null); flyTo('hero'); }
+  else if (k === 'escape') { if (state.iso) { state.iso = null; $('#cardIso').classList.remove('on'); applyLook(); } else select(null); }
+});
+function wake() { lastInput = time; controls.autoRotate = false; }
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  // keep the car centred in the space right of the parts panel
+  camera.filmOffset = w > 860 ? -(150 / w) * camera.getFilmWidth() : 0;
+  camera.updateProjectionMatrix();
+  labels.forEach((L) => { L.w = 0; });
+}
+addEventListener('resize', resize);
+resize();
+
+// ---------------------------------------------------------------------------
+// Deep links: #p=1&view=side&color=blue&xray&flow=charge&sel=pack&nolabels&noauto&t=6
+// ---------------------------------------------------------------------------
+const hp = new URLSearchParams(location.hash.slice(1));
+setPaint(hp.get('color') || 'red');
+if (hp.has('xray')) state.xray = true;
+if (hp.has('nolabels')) state.labels = false;
+if (hp.has('flow')) { state.flow = true; state.xray = true; $('#flowSeg').hidden = false; setFlowMode(['drive', 'regen', 'charge'].includes(hp.get('flow')) ? hp.get('flow') : 'drive'); }
+const startView = VIEWS[hp.get('view')] ? hp.get('view') : 'hero';
+{
+  const [p, q] = viewEnd(startView);
+  controls.target.copy(q);
+  camera.position.copy(q).addScaledVector(p.clone().sub(q), 1.45).add(new V3(0, 0.6, 0));
+}
+const timeline = [[0.2, () => flyTo(startView, 1.8)]];
+if (hp.has('p')) { const v = clamp01(parseFloat(hp.get('p')) || 0); timeline.push([0.4, () => { state.target = v; }]); }
+else if (hp.has('explode') || !(hp.has('noauto') || state.flow)) timeline.push([1.6, () => { state.target = 1; }]);
+if (hp.has('sel') && PARTS[hp.get('sel')]) timeline.push([0.5, () => select(hp.get('sel'))]);
+applyLook(); syncButtons();
+
+// ---------------------------------------------------------------------------
+// Loop
+// ---------------------------------------------------------------------------
+const FLOW_DIR = { drive: { hv: 1, chg: 0, cool: 1, wheel: 9 }, regen: { hv: -1, chg: 0, cool: 1, wheel: 6 }, charge: { hv: 0, chg: 1, cool: 0.6, wheel: 0 } };
+let wheelSpeed = 0, playState = null;
+const playTxt = $('#playTxt'), playIco = $('#playIco');
+function tick(dt) {
+  time += dt; uTime.value = time;
+  while (timeline.length && timeline[0][0] <= time) timeline.shift()[1]();
+
+  if (!sliding) {
+    const d = state.target - state.p, step = dt / 3.0;
+    state.p = Math.abs(d) <= step ? state.target : state.p + Math.sign(d) * step;
+  }
+  const p = state.p;
+  upper.position.y = 2.0 * ease(clamp01((p - 0.2) / 0.45));
+  cabin.position.y = 0.95 * ease(clamp01((p - 0.26) / 0.45));
+  for (const pc of pieces) {
+    const [s0, len] = STAGES[pc.stage];
+    pc.obj.position.copy(pc.base).addScaledVector(pc.off, ease(clamp01((p - s0 - pc.delay) / len)));
+  }
+  blob.material.opacity = 1 - 0.75 * ease(clamp01(p / 0.5));
+
+  // energy flow
+  const fm = FLOW_DIR[state.flowMode];
+  const flowOn = state.flow ? 1 - smooth(0.02, 0.15, p) : 0;
+  for (const f of flows) {
+    const u = f.m.material.uniforms;
+    const dir = f.kind === 'hv' ? fm.hv : f.kind === 'chg' ? fm.chg : fm.cool;
+    u.uOn.value = damp(u.uOn.value, dir !== 0 ? flowOn : 0, 6, dt);
+    if (dir !== 0) u.uDir.value = Math.sign(dir);
+    u.uSpeed.value = Math.abs(dir) || 1;
+    f.m.visible = u.uOn.value > 0.01;
+  }
+  M.cellTop.emissive.setRGB(0.05, 0.5, 0.18).multiplyScalar(state.flow && state.flowMode === 'charge' ? 0.35 + 0.35 * Math.sin(time * 4) : 0);
+  wheelSpeed = damp(wheelSpeed, state.flow ? fm.wheel : 0, 2, dt);
+  for (const s of spinners) s.rotation.z -= wheelSpeed * dt;
+
+  // camera
+  if (fly) {
+    const k = ease(clamp01((time - fly.t0) / fly.dur)), [p1, q1] = fly.end();
+    camera.position.lerpVectors(fly.p0, p1, k); controls.target.lerpVectors(fly.q0, q1, k);
+    if (k >= 1) fly = null;
+  }
+  applyFraming();
+  controls.autoRotate = !fly && !dragging && time - lastInput > 14 && !state.sel;
+
+  // ui
+  slider.value = Math.round(p * 1000);
+  slider.style.setProperty('--p', `${(p * 100).toFixed(1)}%`);
+  pctEl.textContent = `${Math.round(p * 100)}%`;
+  const exploding = state.target > 0.5;
+  if (exploding !== playState) {
+    playState = exploding;
+    playTxt.textContent = exploding ? '复原' : '拆解';
+    playIco.setAttribute('d', exploding ? 'M1.5 2.2h9v1.6h-9zM1.5 5.2h9v1.6h-9zM1.5 8.2h9v1.6h-9z' : 'M2 1.2v9.6L10.4 6z');
+  }
+}
+
+const ff = clamp(parseFloat(hp.get('t')) || 0, 0, 30);
+for (let i = 0; i < ff * 60; i++) tick(1 / 60);
+try { await renderer.compileAsync(scene, camera); } catch { /* falls back to compiling on first render */ }
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  tick(dt);
+  controls.update(dt);
+  updateHover(dt);
+  renderer.render(scene, camera);
+  updateLabels(dt);
+  requestAnimationFrame(frame);
+}
+renderer.render(scene, camera);
+bootEl.classList.add('done');
+requestAnimationFrame(frame);
+console.info(`[model-y] scene built in ${(performance.now() - T_BUILD).toFixed(0)} ms`);
+window.__modelY = { state, select, flyTo, setPaint, camera, scene, renderer, controls };
+</script>
+</body>
+</html>
